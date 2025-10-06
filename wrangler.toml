@@ -1,0 +1,9 @@
+name = "shared-shopping-list"
+main = "src/worker.js"
+compatibility_date = "2024-10-07"
+
+# KV Namespace
+[[kv_namespaces]]
+binding = "SHOPLIST"
+id = "389bc7f46e5b46448fc7ce82640da481"
+preview_id = "94251a22e793451bb9a088befea72aae"
