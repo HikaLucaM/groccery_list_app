@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <title>Shared Shopping List</title>
   <style>
     * {
@@ -10,218 +10,384 @@
       margin: 0;
       padding: 0;
     }
+    
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       line-height: 1.6;
-      padding: 20px;
       background: #f5f5f5;
+      /* モバイル最適化: 下部固定入力バーのために余白確保 */
+      padding-bottom: 80px;
     }
+    
     .container {
       max-width: 720px;
       margin: 0 auto;
       background: white;
-      padding: 24px;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      min-height: 100vh;
     }
+    
+    /* ヘッダーエリア */
+    .header {
+      padding: 16px;
+      border-bottom: 1px solid #eee;
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 10;
+    }
+    
     h1 {
-      font-size: 24px;
-      margin-bottom: 16px;
+      font-size: 22px;
+      margin-bottom: 12px;
       color: #333;
     }
+    
+    /* 共有URLエリア */
     .share-url {
-      margin-bottom: 20px;
-      padding: 12px;
+      margin-bottom: 12px;
+      padding: 10px;
       background: #f9f9f9;
       border: 1px solid #ddd;
-      border-radius: 4px;
-      font-size: 13px;
+      border-radius: 6px;
+      font-size: 12px;
       color: #666;
     }
+    
     .share-url label {
       display: block;
       font-weight: 600;
       margin-bottom: 6px;
+      font-size: 12px;
     }
+    
     .share-url-container {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       align-items: stretch;
     }
+    
     .share-url input {
       flex: 1;
       padding: 8px;
       border: 1px solid #ccc;
       border-radius: 4px;
-      font-size: 13px;
+      font-size: 12px;
       font-family: monospace;
+      background: white;
     }
+    
     .copy-btn {
-      padding: 8px 16px;
+      padding: 8px 12px;
       background: #28a745;
       color: white;
       border: none;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       white-space: nowrap;
-      transition: all 0.3s ease;
-      min-width: 80px;
+      transition: all 0.2s ease;
+      min-width: 70px;
+      /* モバイル最適化: タップしやすく */
+      min-height: 44px;
     }
+    
     .copy-btn:hover {
       background: #218838;
     }
+    
     .copy-btn:active {
       transform: scale(0.95);
     }
+    
     .copy-btn.copied {
       background: #007bff;
     }
-    .toast {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #333;
-      color: white;
-      padding: 12px 24px;
-      border-radius: 4px;
-      font-size: 14px;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-      pointer-events: none;
-      z-index: 1000;
-    }
-    .toast.show {
-      opacity: 1;
-    }
-    .add-section {
-      margin-bottom: 20px;
-      display: flex;
-      gap: 8px;
-    }
-    .add-section input {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 14px;
-    }
-    .add-section button {
-      padding: 10px 20px;
-      background: #007bff;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-    }
-    .add-section button:hover {
-      background: #0056b3;
-    }
+    
+    /* フィルターエリア */
     .filter-section {
-      margin-bottom: 16px;
       display: flex;
       align-items: center;
       gap: 8px;
+      margin-top: 8px;
     }
+    
     .filter-section label {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
+      color: #555;
     }
+    
     .filter-section select {
-      padding: 6px 10px;
+      flex: 1;
+      padding: 8px 10px;
       border: 1px solid #ccc;
       border-radius: 4px;
       font-size: 14px;
+      background: white;
+      /* モバイル最適化 */
+      min-height: 44px;
     }
+    
+    /* アイテムリスト */
     .item-list {
       list-style: none;
+      padding: 0;
     }
+    
     .item {
       display: flex;
       align-items: center;
-      padding: 12px;
+      padding: 14px 16px;
       border-bottom: 1px solid #eee;
       gap: 12px;
-      min-height: 48px;
+      /* モバイル最適化: タップしやすい高さ */
+      min-height: 56px;
+      transition: background 0.15s ease;
     }
+    
+    .item:active {
+      background: #f8f8f8;
+    }
+    
     .item:last-child {
       border-bottom: none;
     }
-    .item input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      cursor: pointer;
-    }
+    
+    /* モバイル最適化: ラベルを左、チェックボックスを右に */
     .item-label {
       flex: 1;
-      font-size: 15px;
+      font-size: 16px;
       cursor: pointer;
       user-select: none;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      /* 長いテキストの折り返し */
+      hyphens: auto;
+      padding-right: 8px;
     }
+    
     .item-label.checked {
       text-decoration: line-through;
       color: #999;
     }
+    
+    /* モバイル最適化: チェックボックスを右側に、大きく */
+    .item input[type="checkbox"] {
+      order: 2;
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      flex-shrink: 0;
+      /* タップ領域を広げる */
+      margin: -8px;
+      padding: 8px;
+    }
+    
     .item button {
-      padding: 6px 12px;
+      padding: 6px 10px;
       background: #dc3545;
       color: white;
       border: none;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      /* モバイル最適化 */
+      min-height: 36px;
+      min-width: 50px;
     }
+    
     .item button:hover {
       background: #c82333;
     }
+    
+    .item button:active {
+      transform: scale(0.95);
+    }
+    
+    /* 下部固定の入力バー（モバイル最適化） */
+    .add-section {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-top: 2px solid #ddd;
+      padding: 12px;
+      display: flex;
+      gap: 8px;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      z-index: 100;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    
+    .add-section input {
+      flex: 1;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+      /* iOS対策: ズーム防止 */
+      min-height: 44px;
+    }
+    
+    .add-section button {
+      padding: 12px 20px;
+      background: #007bff;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 600;
+      white-space: nowrap;
+      /* モバイル最適化 */
+      min-height: 44px;
+      min-width: 70px;
+    }
+    
+    .add-section button:hover {
+      background: #0056b3;
+    }
+    
+    .add-section button:active {
+      transform: scale(0.95);
+    }
+    
+    /* 状態表示 */
     .empty-state {
       text-align: center;
-      padding: 40px 20px;
+      padding: 60px 20px;
       color: #999;
-      font-size: 14px;
+      font-size: 15px;
     }
+    
     .loading {
       text-align: center;
-      padding: 20px;
+      padding: 40px 20px;
       color: #666;
+      font-size: 14px;
+    }
+    
+    /* トースト通知 */
+    .toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 6px;
+      font-size: 14px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      z-index: 1000;
+      max-width: 90%;
+      text-align: center;
+    }
+    
+    .toast.show {
+      opacity: 1;
+    }
+    
+    /* 自動更新インジケーター */
+    .sync-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #28a745;
+      margin-left: 8px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .sync-indicator.syncing {
+      opacity: 1;
+      animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    /* レスポンシブ対応 */
+    @media (min-width: 721px) {
+      body {
+        padding: 20px;
+        padding-bottom: 100px;
+      }
+      
+      .container {
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        min-height: auto;
+      }
+      
+      .header {
+        border-radius: 8px 8px 0 0;
+        padding: 20px;
+      }
+      
+      .add-section {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: 720px;
+        border-radius: 8px;
+      }
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1 id="title">Shopping</h1>
-    
-    <div class="share-url">
-      <label for="shareUrlInput">共有URL（このURLを相手と共有してください）</label>
-      <div class="share-url-container">
-        <input type="text" id="shareUrlInput" readonly>
-        <button class="copy-btn" id="copyBtn" aria-label="URLをコピー">コピー</button>
+    <!-- ヘッダー -->
+    <div class="header">
+      <h1>
+        <span id="title">Shopping</span>
+        <span class="sync-indicator" id="syncIndicator"></span>
+      </h1>
+      
+      <!-- 共有URL -->
+      <div class="share-url">
+        <label for="shareUrlInput">共有URL</label>
+        <div class="share-url-container">
+          <input type="text" id="shareUrlInput" readonly aria-label="共有URL">
+          <button class="copy-btn" id="copyBtn" aria-label="URLをコピー">コピー</button>
+        </div>
+      </div>
+      
+      <!-- フィルター -->
+      <div class="filter-section">
+        <label for="filterSelect">表示:</label>
+        <select id="filterSelect" aria-label="表示フィルタ">
+          <option value="unchecked">未チェックのみ</option>
+          <option value="all">すべて</option>
+        </select>
       </div>
     </div>
 
-    <div class="add-section">
-      <input type="text" id="newItemInput" placeholder="買うものを入力..." aria-label="新しいアイテム">
-      <button id="addBtn" aria-label="追加">追加</button>
-    </div>
-
-    <div class="filter-section">
-      <label for="filterSelect">表示:</label>
-      <select id="filterSelect" aria-label="フィルタ">
-        <option value="unchecked">未チェックのみ</option>
-        <option value="all">すべて</option>
-      </select>
-    </div>
-
+    <!-- アイテムリスト -->
     <ul class="item-list" id="itemList">
       <li class="loading">読み込み中...</li>
     </ul>
   </div>
 
-  <!-- Toast notification -->
+  <!-- 下部固定の入力バー -->
+  <div class="add-section">
+    <input type="text" id="newItemInput" placeholder="買うものを入力..." aria-label="新しいアイテム">
+    <button id="addBtn" aria-label="追加">追加</button>
+  </div>
+
+  <!-- トースト通知 -->
   <div class="toast" id="toast"></div>
 
   <script>
@@ -229,6 +395,7 @@
     // Configuration
     // ============================================================
     const API_BASE = 'https://shared-shopping-list.grocery-shopping-list.workers.dev';
+    const POLL_INTERVAL_MS = 7000; // 7秒間隔で自動更新
 
     // ============================================================
     // State
@@ -236,6 +403,9 @@
     let listData = { title: 'Shopping', items: [] };
     let currentFilter = 'unchecked';
     let token = '';
+    let pollTimer = null;
+    let lastSavedState = '';
+    let isSaving = false; // PUT中はポーリング結果を無視
 
     // ============================================================
     // Initialization
@@ -255,13 +425,19 @@
       // Display share URL
       document.getElementById('shareUrlInput').value = window.location.href;
 
-      // Load data
+      // Load initial data
       loadList();
+
+      // Start auto-polling
+      startPolling();
 
       // Event listeners
       document.getElementById('addBtn').addEventListener('click', handleAdd);
       document.getElementById('newItemInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleAdd();
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleAdd();
+        }
       });
       document.getElementById('filterSelect').addEventListener('change', (e) => {
         currentFilter = e.target.value;
@@ -276,11 +452,65 @@
     function generateToken() {
       const array = new Uint8Array(16);
       crypto.getRandomValues(array);
-      // URL-safe Base64
       return btoa(String.fromCharCode(...array))
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=/g, '');
+    }
+
+    // ============================================================
+    // Auto-Polling (自動更新)
+    // ============================================================
+    function startPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      
+      pollTimer = setInterval(async () => {
+        // PUT中は競合を避けるためポーリングしない
+        if (isSaving) {
+          console.log('[Polling] Skipping poll during save operation');
+          return;
+        }
+        
+        await pollList();
+      }, POLL_INTERVAL_MS);
+    }
+
+    async function pollList() {
+      try {
+        showSyncIndicator(true);
+        
+        const response = await fetch(`${API_BASE}/api/list/${token}`);
+        if (!response.ok) {
+          console.error('[Polling] Failed to fetch:', response.status);
+          return;
+        }
+        
+        const remoteData = await response.json();
+        const remoteState = JSON.stringify(remoteData);
+        
+        // 差分がある場合のみ更新
+        if (remoteState !== lastSavedState) {
+          console.log('[Polling] Remote changes detected, updating UI');
+          listData = remoteData;
+          document.getElementById('title').textContent = listData.title;
+          lastSavedState = remoteState;
+          render();
+        }
+        
+        showSyncIndicator(false);
+      } catch (error) {
+        console.error('[Polling] Error:', error);
+        showSyncIndicator(false);
+      }
+    }
+
+    function showSyncIndicator(syncing) {
+      const indicator = document.getElementById('syncIndicator');
+      if (syncing) {
+        indicator.classList.add('syncing');
+      } else {
+        indicator.classList.remove('syncing');
+      }
     }
 
     // ============================================================
@@ -290,8 +520,10 @@
       try {
         const response = await fetch(`${API_BASE}/api/list/${token}`);
         if (!response.ok) throw new Error('Failed to load list');
+        
         listData = await response.json();
         document.getElementById('title').textContent = listData.title;
+        lastSavedState = JSON.stringify(listData);
         render();
       } catch (error) {
         console.error('Error loading list:', error);
@@ -301,16 +533,24 @@
     }
 
     async function saveList() {
+      isSaving = true;
+      
       try {
         const response = await fetch(`${API_BASE}/api/list/${token}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(listData),
         });
+        
         if (!response.ok) throw new Error('Failed to save list');
+        
+        // 保存成功後、現在の状態を記録
+        lastSavedState = JSON.stringify(listData);
       } catch (error) {
         console.error('Error saving list:', error);
-        alert('保存に失敗しました');
+        showToast('保存に失敗しました', true);
+      } finally {
+        isSaving = false;
       }
     }
 
@@ -334,6 +574,7 @@
       listData.items.push(newItem);
       input.value = '';
       
+      // 楽観的UI更新
       render();
       saveList();
     }
@@ -345,7 +586,7 @@
       item.checked = !item.checked;
       item.updated_at = Date.now();
 
-      // Sort: unchecked first, then by pos (stable sort)
+      // Sort: unchecked first, then by pos
       listData.items.sort((a, b) => {
         if (a.checked !== b.checked) {
           return a.checked ? 1 : -1;
@@ -358,6 +599,7 @@
         item.pos = index;
       });
 
+      // 楽観的UI更新
       render();
       saveList();
     }
@@ -370,6 +612,7 @@
         item.pos = index;
       });
 
+      // 楽観的UI更新
       render();
       saveList();
     }
@@ -401,19 +644,19 @@
 
       listEl.innerHTML = itemsToShow.map(item => `
         <li class="item">
-          <input 
-            type="checkbox" 
-            ${item.checked ? 'checked' : ''} 
-            onchange="handleToggle('${item.id}')"
-            aria-label="チェック"
-          >
           <span 
             class="item-label ${item.checked ? 'checked' : ''}"
             onclick="handleToggle('${item.id}')"
           >
             ${escapeHtml(item.label)}
           </span>
-          <button onclick="handleDelete('${item.id}')" aria-label="削除">削除</button>
+          <input 
+            type="checkbox" 
+            ${item.checked ? 'checked' : ''} 
+            onchange="handleToggle('${item.id}')"
+            aria-label="${escapeHtml(item.label)}をチェック"
+          >
+          <button onclick="handleDelete('${item.id}')" aria-label="${escapeHtml(item.label)}を削除">削除</button>
         </li>
       `).join('');
     }
@@ -427,38 +670,30 @@
       return div.innerHTML;
     }
 
-    /**
-     * Copy share URL to clipboard
-     */
     async function copyToClipboard() {
       const input = document.getElementById('shareUrlInput');
       const btn = document.getElementById('copyBtn');
       const url = input.value;
 
       try {
-        // Modern Clipboard API
         await navigator.clipboard.writeText(url);
         
-        // Visual feedback
-        btn.textContent = '✓ コピー済み';
+        btn.textContent = '✓ 完了';
         btn.classList.add('copied');
-        
-        // Show toast
         showToast('URLをコピーしました！');
         
-        // Reset button after 2 seconds
         setTimeout(() => {
           btn.textContent = 'コピー';
           btn.classList.remove('copied');
         }, 2000);
       } catch (err) {
-        // Fallback for older browsers
+        // Fallback
         input.select();
-        input.setSelectionRange(0, 99999); // For mobile devices
+        input.setSelectionRange(0, 99999);
         
         try {
           document.execCommand('copy');
-          btn.textContent = '✓ コピー済み';
+          btn.textContent = '✓ 完了';
           btn.classList.add('copied');
           showToast('URLをコピーしました！');
           
@@ -472,9 +707,6 @@
       }
     }
 
-    /**
-     * Show toast notification
-     */
     function showToast(message, isError = false) {
       const toast = document.getElementById('toast');
       toast.textContent = message;
