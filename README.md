@@ -8,6 +8,8 @@
 ## 🌟 デモ
 
 **👉 [アプリを試す](https://main.shopping-list-app-8to.pages.dev)**
+<img width="200" height="450" alt="image" src="https://github.com/user-attachments/assets/614382c5-cb0f-4f96-8269-0bff2f3e1313" />
+
 
 ## ✨ 特徴
 
