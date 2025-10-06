@@ -1,119 +1,82 @@
-# Shared Shopping List
+# Shared Shopping List 🛒
 
-夫婦やパートナーとURLだけで共有できるシンプルな買い物リストアプリです。認証なし、トークンベースで動作し、Cloudflare Workers + KVで構築されています。
+シンプルで使いやすい、夫婦やパートナーと共有できる買い物リストアプリです。認証不要、URLだけで簡単に共有できます。
 
-## 特徴
+[![Deploy to Cloudflare](https://img.shields.io/badge/Deploy%20to-Cloudflare-orange?logo=cloudflare)](https://workers.cloudflare.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-- 🔗 **URLベースの共有**: 認証不要。URLの`?t=<token>`パラメータが秘密鍵として機能
-- ✅ **シンプルなUI**: 追加、チェック、削除の基本操作のみ
+## 🌟 デモ
+
+**👉 [アプリを試す](https://shopping-list-app-8to.pages.dev)**
+
+## ✨ 特徴
+
+- 🔗 **認証不要**: URLの`?t=<token>`パラメータが秘密鍵として機能
+- ✅ **シンプルUI**: 追加、チェック、削除の基本操作のみ
 - 🔍 **フィルタ機能**: デフォルトは未チェック項目のみ表示。切り替えで全件表示可能
 - 📱 **モバイル対応**: レスポンシブデザインでスマホでも使いやすい
-- 💰 **無料枠で動作**: Cloudflareの無料プランで十分に運用可能
+- ☁️ **クラウド保存**: Cloudflare KVでデータを永続化
+- 💰 **無料で運用**: Cloudflareの無料プランで十分に動作
+- 🚀 **高速**: エッジネットワークで世界中どこでも高速アクセス
 
-## 前提条件
+## 🏗️ 技術スタック
 
-- Node.js (v18以上推奨)
-- Cloudflare アカウント
-- Wrangler CLI (プロジェクトに含まれています)
+- **フロントエンド**: Vanilla JavaScript（ビルド不要）
+- **バックエンド**: [Cloudflare Workers](https://workers.cloudflare.com/)
+- **データベース**: [Cloudflare KV](https://developers.cloudflare.com/kv/)
+- **ホスティング**: [Cloudflare Pages](https://pages.cloudflare.com/)
 
-## セットアップ手順
+## 🚀 クイックスタート
 
-### 1. 依存関係のインストール
+### 前提条件
+
+- [Node.js](https://nodejs.org/) v18以上
+- [Cloudflareアカウント](https://dash.cloudflare.com/sign-up)（無料）
+
+### デプロイ手順
 
 ```bash
+# 1. リポジトリをクローン
+git clone https://github.com/あなたのユーザー名/grocery_list_app.git
+cd grocery_list_app
+
+# 2. 依存関係をインストール
 npm install
-```
 
-### 2. KV名前空間の作成
+# 3. Cloudflareにログイン
+npx wrangler login
 
-Cloudflare KVストレージを使用するため、名前空間を作成します。
-
-```bash
+# 4. KV名前空間を作成
 npx wrangler kv:namespace create SHOPLIST
-```
+# 出力されたIDをメモして、wrangler.tomlのidフィールドに設定
 
-実行すると次のような出力が得られます:
-
-```
-🌀 Creating namespace with title "shared-shopping-list-SHOPLIST"
-✨ Success!
-Add the following to your wrangler.toml:
-[[kv_namespaces]]
-binding = "SHOPLIST"
-id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-```
-
-### 3. wrangler.tomlの更新
-
-`wrangler.toml`ファイルを開き、`YOUR_KV_NAMESPACE_ID`を上記で生成されたIDに置き換えてください。
-
-プレビュー用の名前空間も作成することをお勧めします:
-
-```bash
 npx wrangler kv:namespace create SHOPLIST --preview
-```
+# 出力されたpreview_idをwrangler.tomlに設定
 
-生成された`preview_id`も`wrangler.toml`に設定してください。
+# 5. wrangler.tomlを編集
+# [[kv_namespaces]]セクションのidとpreview_idを上記で生成された値に置き換える
 
-### 4. ローカル開発
-
-```bash
-npm run dev
-```
-
-これにより`http://localhost:8787`でWorkerが起動します。
-
-### 5. Cloudflare Workersへのデプロイ
-
-```bash
+# 6. Workersをデプロイ
 npm run deploy
+# デプロイされたWorkerのURLをメモ（例: https://your-worker.your-subdomain.workers.dev）
+
+# 7. index.htmlを編集
+# API_BASE定数をデプロイされたWorkerのURLに変更
+
+# 8. 静的ファイルをデプロイ用に準備
+mkdir -p public && cp index.html public/
+
+# 9. Cloudflare Pagesにデプロイ
+npx wrangler pages deploy public --project-name=shopping-list-app
 ```
 
-デプロイが成功すると、次のような出力が表示されます:
-
-```
-Published shared-shopping-list (X.XX sec)
-  https://shared-shopping-list.your-subdomain.workers.dev
-```
-
-このURLがあなたのAPIエンドポイントになります。
-
-### 6. フロントエンドの設定
-
-`index.html`を開き、`API_BASE`定数を上記でデプロイしたWorkerのURLに置き換えてください:
-
-```javascript
-// 変更前
-const API_BASE = 'https://your-worker.your-subdomain.workers.dev';
-
-// 変更後（例）
-const API_BASE = 'https://shared-shopping-list.your-subdomain.workers.dev';
-```
-
-### 7. フロントエンドのホスティング
-
-`index.html`を任意の静的ホスティングサービスに配置します:
-
-- **Cloudflare Pages** (推奨)
-  ```bash
-  npx wrangler pages deploy . --project-name=shopping-list
-  ```
-
-- **GitHub Pages**
-  - リポジトリの設定でGitHub Pagesを有効化
-  - `index.html`をルートまたは`docs`フォルダに配置
-
-- **Netlify / Vercel**
-  - ドラッグ&ドロップで`index.html`をデプロイ
-
-- **ローカルファイル**
-  - `index.html`をダブルクリックで直接開くことも可能（ブラウザのCORS制限に注意）
-
-## 使い方
+## 📖 使い方
 
 ### 1. アクセス
 
-デプロイしたフロントエンドのURLにアクセスします。初回アクセス時、自動的にトークンが生成され、URLに`?t=<token>`が付与されます。
+デプロイしたURL（例: `https://shopping-list-app-8to.pages.dev`）にアクセスします。
+
+初回アクセス時、自動的にトークンが生成され、URLに`?t=<ランダムなトークン>`が付与されます。
 
 ### 2. 共有
 
@@ -132,7 +95,21 @@ const API_BASE = 'https://shared-shopping-list.your-subdomain.workers.dev';
 - デフォルトではチェック済み項目は非表示（フィルタで表示可能）
 - チェック済み項目は打ち消し線で表示されます
 
-## API仕様
+## 📁 プロジェクト構成
+
+```
+.
+├── src/
+│   └── worker.js          # Cloudflare Worker API
+├── index.html             # フロントエンド（静的HTML）
+├── wrangler.toml          # Cloudflare設定
+├── package.json           # npm設定とスクリプト
+├── .gitignore             # Git除外設定
+├── LICENSE                # ライセンス
+└── README.md              # このファイル
+```
+
+## 🔧 API仕様
 
 ### エンドポイント
 
@@ -188,23 +165,46 @@ const API_BASE = 'https://shared-shopping-list.your-subdomain.workers.dev';
 }
 ```
 
-## セキュリティについて
+## 🔒 セキュリティについて
 
 ⚠️ **重要な注意事項**
 
-- URLは事実上の鍵です。第三者と共有しないでください
+- **URLは事実上の鍵です**。第三者と共有しないでください
 - URLが漏洩した場合:
   1. 新しいトークンでURLを発行（ブラウザでクエリパラメータを削除してアクセス）
   2. 必要に応じて旧トークンをDELETEエンドポイントで削除
-- このアプリは個人利用・家族間での利用を想定しています
-- 機密情報は保存しないでください
+- このアプリは**個人利用・家族間での利用**を想定しています
+- **機密情報は保存しない**でください
 
-## トラブルシューティング
+### GitHub公開について
+
+このリポジトリは安全に公開できます：
+
+- ✅ KV名前空間IDは公開しても問題ありません（アクセスキーではないため）
+- ✅ Worker URLも公開可能（トークンがないとデータにアクセスできない）
+- ✅ 環境変数や秘密鍵は含まれていません
+- ⚠️ デプロイ後のトークン付きURLは共有しないように注意
+
+## 💡 カスタマイズ
+
+### デザイン変更
+
+`index.html`の`<style>`セクションを編集してデザインをカスタマイズできます。
+
+### リスト名の変更
+
+`index.html`の`listData.title`初期値を変更するか、Worker側で別のデフォルト値を設定できます。
+
+### バリデーション追加
+
+`src/worker.js`でリクエストのバリデーションやレート制限を追加できます。
+
+## 🐛 トラブルシューティング
 
 ### CORSエラーが発生する
 
-- `wrangler.toml`の`compatibility_date`が最新か確認
 - Worker側でCORSヘッダーが正しく設定されているか確認
+- `wrangler.toml`の`compatibility_date`が適切か確認
 
 ### データが保存されない
 
@@ -215,49 +215,26 @@ const API_BASE = 'https://shared-shopping-list.your-subdomain.workers.dev';
 ### トークンが生成されない
 
 - ブラウザがJavaScriptを有効にしているか確認
-- `crypto.getRandomValues`と`crypto.randomUUID`がサポートされているか確認（モダンブラウザでは問題なし）
+- `crypto.getRandomValues`と`crypto.randomUUID`がサポートされているか確認（モダンブラウザは対応）
 
-## ライセンス
+### SSL/TLS エラー
 
-MIT
+- DNS設定の伝搬を待つ（5-10分程度）
+- ブラウザのキャッシュをクリア
+- シークレットモードで試す
 
-## 開発者向け情報
+## 📄 ライセンス
 
-### プロジェクト構成
+[MIT License](LICENSE) - 自由に使用、改変、配布できます。
 
-```
-/
-├── src/
-│   └── worker.js          # Cloudflare Worker API
-├── index.html             # フロントエンド（静的HTML）
-├── wrangler.toml          # Cloudflare設定
-├── package.json           # npm設定とスクリプト
-└── README.md              # このファイル
-```
+## 🤝 コントリビューション
 
-### データ構造
+プルリクエストを歓迎します！大きな変更の場合は、まずissueを開いて変更内容を議論してください。
 
-KVには`list:<token>`というキーで以下のJSON構造が保存されます:
+## 📮 お問い合わせ
 
-```typescript
-type ListDoc = {
-  title: string
-  items: Array<{
-    id: string         // UUID
-    label: string      // アイテム名
-    checked: boolean   // チェック状態
-    pos: number        // 並び順（0から連番）
-    updated_at: number // タイムスタンプ
-  }>
-}
-```
-
-### カスタマイズ
-
-- `index.html`のCSS部分を編集してデザインを変更
-- `listData.title`の初期値を変更してリスト名をカスタマイズ
-- Worker側でバリデーションやレート制限を追加
+質問や提案がある場合は、[Issues](https://github.com/あなたのユーザー名/grocery_list_app/issues)を開いてください。
 
 ---
 
-Enjoy your shared shopping! 🛒
+Made with ❤️ using Cloudflare Workers
