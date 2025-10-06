@@ -7,7 +7,7 @@
 
 ## 🌟 デモ
 
-**👉 [アプリを試す](https://shopping-list-app-8to.pages.dev)**
+**👉 [アプリを試す](https://main.shopping-list-app-8to.pages.dev)**
 
 ## ✨ 特徴
 
@@ -75,7 +75,7 @@ npx wrangler pages deploy public --project-name=shopping-list-app
 
 ### 1. アクセス
 
-デプロイしたURL（例: `https://shopping-list-app-8to.pages.dev`）にアクセスします。
+デプロイしたURL（例: `https://main.shopping-list-app-8to.pages.dev`）にアクセスします。
 
 初回アクセス時、自動的にトークンが生成され、URLに`?t=<ランダムなトークン>`が付与されます。
 
