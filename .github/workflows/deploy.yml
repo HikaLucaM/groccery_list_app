@@ -25,11 +25,10 @@ jobs:
         run: npm ci
 
       - name: Deploy Workers
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: '4.42.0'
           command: deploy
 
       - name: Prepare static files
@@ -38,9 +37,8 @@ jobs:
           cp index.html public/
 
       - name: Deploy Pages
-        uses: cloudflare/wrangler-action@v3
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: '4.42.0'
           command: pages deploy public --project-name=shopping-list-app --branch=main
