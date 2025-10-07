@@ -43,56 +43,117 @@
       margin-bottom: 10px;
       color: #333;
       font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
     
-    /* 共有URLエリア */
-    .share-url {
-      margin-bottom: 12px;
-      padding: 10px;
-      background: #f9f9f9;
-      border: 1px solid #ddd;
+    /* 共有ボタン */
+    .share-btn {
+      padding: 8px 16px;
+      background: #28a745;
+      color: white;
+      border: none;
       border-radius: 6px;
-      font-size: 12px;
-      color: #666;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      white-space: nowrap;
+      min-height: 36px;
+      transition: all 0.2s ease;
     }
     
-    .share-url label {
-      display: block;
-      font-weight: 600;
-      margin-bottom: 6px;
-      font-size: 12px;
+    .share-btn:hover {
+      background: #218838;
+    }
+    
+    .share-btn:active {
+      transform: scale(0.95);
+    }
+    
+    /* 共有モーダル */
+    .share-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.4);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .share-modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      width: 90%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+    
+    .share-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .share-modal-header h3 {
+      margin: 0;
+      font-size: 18px;
+      color: #333;
+    }
+    
+    .share-modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #999;
+      padding: 0;
+      width: 28px;
+      height: 28px;
+      line-height: 28px;
+      text-align: center;
+    }
+    
+    .share-modal-close:hover {
+      color: #333;
     }
     
     .share-url-container {
       display: flex;
-      gap: 6px;
+      gap: 8px;
       align-items: stretch;
     }
     
-    .share-url input {
+    .share-url-container input {
       flex: 1;
-      padding: 8px;
+      padding: 10px;
       border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 12px;
+      border-radius: 6px;
+      font-size: 13px;
       font-family: monospace;
-      background: white;
+      background: #f9f9f9;
     }
     
     .copy-btn {
-      padding: 8px 12px;
+      padding: 10px 16px;
       background: #28a745;
       color: white;
       border: none;
-      border-radius: 4px;
+      border-radius: 6px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
       white-space: nowrap;
       transition: all 0.2s ease;
-      min-width: 70px;
-      /* モバイル最適化: タップしやすく */
-      min-height: 44px;
+      min-width: 80px;
     }
     
     .copy-btn:hover {
@@ -107,18 +168,13 @@
       background: #007bff;
     }
     
-    /* フィルターエリア */
+    /* フィルターエリア（1行レイアウト） */
     .filter-section {
       display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 8px;
-    }
-    
-    .filter-row {
-      display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 8px;
+      margin-top: 12px;
     }
     
     .filter-section label {
@@ -129,12 +185,12 @@
     }
     
     .filter-section select {
-      flex: 1;
       padding: 8px 10px;
       border: 1px solid #ccc;
       border-radius: 4px;
       font-size: 14px;
       background: white;
+      min-width: 140px;
       /* モバイル最適化 */
       min-height: 44px;
     }
@@ -254,21 +310,23 @@
       z-index: 100;
       max-width: 720px;
       margin: 0 auto;
+      box-sizing: border-box;
     }
     
     .add-section input[type="text"] {
       flex: 1;
-      padding: 14px 16px;
+      padding: 14px 10px;
       border: 1px solid #ccc;
       border-radius: 8px;
       font-size: 16px;
       /* iOS対策: ズーム防止 */
       min-height: 48px;
+      min-width: 0; /* フレックスアイテムの縮小を許可 */
     }
     
     .add-section select {
-      width: 120px;
-      padding: 14px 12px;
+      width: 100px;
+      padding: 14px 8px;
       border: 1px solid #ccc;
       border-radius: 8px;
       font-size: 13px;
@@ -278,13 +336,13 @@
     }
     
     .add-section button {
-      padding: 14px 20px;
+      padding: 14px 16px;
       background: #007bff;
       color: white;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       white-space: nowrap;
       /* モバイル最適化 */
@@ -512,34 +570,36 @@
     <!-- ヘッダー -->
     <div class="header">
       <h1>
-        <span id="title">Shopping</span>
+        <span id="title">Shopping List</span>
         <span class="sync-indicator" id="syncIndicator"></span>
+        <button class="share-btn" onclick="showShareModal()">Share</button>
       </h1>
-      
-      <!-- 共有URL -->
-      <div class="share-url">
-        <label for="shareUrlInput">共有URL</label>
-        <div class="share-url-container">
-          <input type="text" id="shareUrlInput" readonly aria-label="共有URL">
-          <button class="copy-btn" id="copyBtn" aria-label="URLをコピー">コピー</button>
+
+      <!-- 共有モーダル -->
+      <div id="shareModal" class="share-modal" onclick="if(event.target===this) hideShareModal()">
+        <div class="share-modal-content">
+          <div class="share-modal-header">
+            <h3>Share This List</h3>
+            <button class="share-modal-close" onclick="hideShareModal()">×</button>
+          </div>
+          <div class="share-url-container">
+            <input type="text" id="shareUrlInput" readonly>
+            <button class="copy-btn" id="copyBtn" onclick="copyShareUrl()">Copy</button>
+          </div>
         </div>
       </div>
       
       <!-- フィルター -->
       <div class="filter-section">
-        <div class="filter-row">
-          <label for="filterSelect">表示:</label>
-          <select id="filterSelect" aria-label="表示フィルタ">
-            <option value="unchecked">未チェックのみ</option>
-            <option value="all">すべて</option>
-          </select>
-        </div>
-        <div class="filter-row">
-          <label for="tagFilterSelect">タグ:</label>
-          <select id="tagFilterSelect" aria-label="タグフィルタ">
-            <option value="all">すべてのタグ</option>
-          </select>
-        </div>
+        <label for="filterSelect">Show:</label>
+        <select id="filterSelect" aria-label="表示フィルタ">
+          <option value="unchecked">未チェックのみ</option>
+          <option value="all">すべて</option>
+        </select>
+        <label for="tagFilterSelect">Tag:</label>
+        <select id="tagFilterSelect" aria-label="タグフィルタ">
+          <option value="all">すべてのタグ</option>
+        </select>
       </div>
     </div>
 
@@ -1107,7 +1167,20 @@
       return div.innerHTML;
     }
 
-    async function copyToClipboard() {
+    // ============================================================
+    // Share Modal Functions
+    // ============================================================
+    function showShareModal() {
+      const modal = document.getElementById('shareModal');
+      modal.style.display = 'flex';
+    }
+
+    function hideShareModal() {
+      const modal = document.getElementById('shareModal');
+      modal.style.display = 'none';
+    }
+
+    async function copyShareUrl() {
       const input = document.getElementById('shareUrlInput');
       const btn = document.getElementById('copyBtn');
       const url = input.value;
@@ -1115,12 +1188,12 @@
       try {
         await navigator.clipboard.writeText(url);
         
-        btn.textContent = '✓ 完了';
+        btn.textContent = '✓ Copied';
         btn.classList.add('copied');
         showToast('URLをコピーしました！');
         
         setTimeout(() => {
-          btn.textContent = 'コピー';
+          btn.textContent = 'Copy';
           btn.classList.remove('copied');
         }, 2000);
       } catch (err) {
@@ -1130,18 +1203,24 @@
         
         try {
           document.execCommand('copy');
-          btn.textContent = '✓ 完了';
+          btn.textContent = '✓ Copied';
           btn.classList.add('copied');
           showToast('URLをコピーしました！');
           
           setTimeout(() => {
-            btn.textContent = 'コピー';
+            btn.textContent = 'Copy';
             btn.classList.remove('copied');
           }, 2000);
-        } catch (e) {
+        } catch (err2) {
+          console.error('Failed to copy:', err2);
           showToast('コピーに失敗しました', true);
         }
       }
+    }
+
+    async function copyToClipboard() {
+      // Legacy function - now redirects to copyShareUrl
+      await copyShareUrl();
     }
 
     function showToast(message, isError = false) {
