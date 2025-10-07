@@ -19,6 +19,7 @@
       padding-bottom: 90px;
       /* セーフエリアを考慮 */
       padding-bottom: calc(90px + env(safe-area-inset-bottom));
+      overflow-x: hidden; /* 横スクロール防止 */
     }
     
     .container {
@@ -26,11 +27,12 @@
       margin: 0 auto;
       background: transparent;
       min-height: 100vh;
+      width: 100%; /* 画面幅に合わせる */
     }
     
     /* ヘッダーエリア */
     .header {
-      padding: 18px 16px;
+      padding: 16px 12px;
       border-bottom: none;
       position: sticky;
       top: 0;
@@ -38,12 +40,13 @@
       z-index: 10;
       box-shadow: 0 2px 12px rgba(0,0,0,0.08);
       border-radius: 0 0 20px 20px;
-      margin: 0 8px 16px 8px;
+      margin: 0 4px 12px 4px;
+      width: calc(100% - 8px); /* マージンを考慮した幅 */
     }
     
     h1 {
-      font-size: 26px;
-      margin-bottom: 16px;
+      font-size: 22px;
+      margin-bottom: 12px;
       color: #1a1a1a;
       font-weight: 800;
       letter-spacing: -0.5px;
@@ -54,18 +57,19 @@
     
     /* 共有ボタン */
     .share-btn {
-      padding: 10px 18px;
+      padding: 8px 14px;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       white-space: nowrap;
-      min-height: 40px;
+      min-height: 36px;
       transition: all 0.3s ease;
       box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      flex-shrink: 0; /* ボタンが縮まないように */
     }
     
     .share-btn:hover {
@@ -212,15 +216,15 @@
     /* フィルターエリア（1行レイアウト） */
     .filter-section {
       display: flex;
-      flex-wrap: nowrap;
+      flex-wrap: wrap; /* 小さい画面で折り返し可能に */
       align-items: center;
-      gap: 10px;
-      margin-top: 14px;
-      overflow-x: auto;
+      gap: 8px;
+      margin-top: 12px;
+      overflow-x: visible; /* auto から変更 */
     }
     
     .filter-section label {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
       color: #374151;
       white-space: nowrap;
@@ -228,16 +232,17 @@
     }
     
     .filter-section select {
-      padding: 10px 12px;
+      padding: 10px 8px;
       border: 2px solid #e5e7eb;
       border-radius: 10px;
-      font-size: 15px;
+      font-size: 14px;
       font-weight: 600;
       background: #f9fafb;
-      min-width: 120px;
-      flex-shrink: 0;
+      min-width: 100px; /* 120pxから縮小 */
+      max-width: calc(50vw - 60px); /* 画面幅の半分以下に制限 */
+      flex: 1 1 auto; /* フレキシブルに */
       /* モバイル最適化 */
-      min-height: 48px;
+      min-height: 44px;
       transition: all 0.2s ease;
     }
     
@@ -251,15 +256,15 @@
     /* アイテムリスト */
     .item-list {
       list-style: none;
-      padding: 0 8px;
+      padding: 0 4px; /* 8pxから縮小 */
     }
     
     .item {
       display: flex;
       align-items: center;
-      padding: 16px 14px;
-      margin-bottom: 10px;
-      gap: 12px;
+      padding: 14px 10px; /* 左右パディングを縮小 */
+      margin-bottom: 8px;
+      gap: 10px;
       /* カード型デザイン */
       background: white;
       border-radius: 16px;
@@ -270,6 +275,8 @@
       cursor: pointer;
       position: relative;
       border: 2px solid transparent;
+      width: 100%; /* 幅を明示的に指定 */
+      max-width: 100%; /* 最大幅を制限 */
     }
     
     .item:hover {
@@ -289,7 +296,7 @@
     /* モバイル最適化: ラベルを左側に配置 */
     .item-label {
       flex: 1;
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 600;
       user-select: none;
       word-wrap: break-word;
@@ -299,13 +306,16 @@
       line-height: 1.5;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       color: #1a1a1a;
+      min-width: 0; /* フレックスアイテムが縮小可能に */
+      overflow: hidden; /* はみ出しを防ぐ */
     }
     
     .item-label-text {
       display: block;
       letter-spacing: -0.2px;
+      word-break: break-word; /* 長い単語を折り返し */
     }
     
     .item-label.checked .item-label-text {
@@ -318,22 +328,26 @@
     .item-tags {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 5px;
       margin-top: 2px;
+      max-width: 100%; /* 親要素の幅を超えないように */
     }
     
     .tag-badge {
       display: inline-flex;
       align-items: center;
-      padding: 5px 12px;
+      padding: 4px 10px;
       border-radius: 20px;
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       color: white;
       white-space: nowrap;
       letter-spacing: 0.3px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.15);
       transition: transform 0.2s ease;
+      max-width: 100%; /* タグが親要素を超えないように */
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     
     .tag-badge:active {
@@ -409,27 +423,28 @@
       right: 0;
       background: white;
       border-top: none;
-      padding: 14px 16px;
+      padding: 12px 8px;
       /* セーフエリアを考慮（iPhone等） */
-      padding-bottom: max(14px, env(safe-area-inset-bottom));
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
       display: flex;
-      gap: 10px;
+      gap: 6px;
       box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
       z-index: 100;
       max-width: 720px;
       margin: 0 auto;
       box-sizing: border-box;
       border-radius: 24px 24px 0 0;
+      width: 100%; /* 幅を明示的に指定 */
     }
     
     .add-section input[type="text"] {
       flex: 1;
-      padding: 16px 20px;
+      padding: 14px 12px;
       border: 2px solid #e5e7eb;
       border-radius: 12px;
       font-size: 16px;
       /* iOS対策: ズーム防止 */
-      min-height: 54px;
+      min-height: 50px;
       min-width: 0; /* フレックスアイテムの縮小を許可 */
       font-weight: 500;
       transition: all 0.2s ease;
@@ -444,16 +459,17 @@
     }
     
     .add-section select {
-      width: 110px;
-      padding: 16px 12px;
+      width: 90px; /* 110pxから縮小 */
+      padding: 14px 8px;
       border: 2px solid #e5e7eb;
       border-radius: 12px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       background: #f9fafb;
-      min-height: 54px;
+      min-height: 50px;
       flex-shrink: 0;
       transition: all 0.2s ease;
+      max-width: 25vw; /* ビューポート幅の25%まで */
     }
     
     .add-section select:focus {
@@ -464,20 +480,21 @@
     }
     
     .add-section button {
-      padding: 16px 24px;
+      padding: 14px 16px;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       border: none;
       border-radius: 12px;
       cursor: pointer;
-      font-size: 17px;
+      font-size: 15px;
       font-weight: 800;
       white-space: nowrap;
       /* モバイル最適化 */
-      min-height: 54px;
+      min-height: 50px;
       flex-shrink: 0;
       box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
       transition: all 0.3s ease;
+      min-width: 60px; /* 最小幅を確保 */
     }
     
     .add-section button:hover {
@@ -683,6 +700,95 @@
       }
     }
     
+    /* 小さい画面向けの調整 (320px - 400px) */
+    @media (max-width: 400px) {
+      h1 {
+        font-size: 20px;
+        gap: 8px;
+      }
+      
+      .share-btn {
+        font-size: 12px;
+        padding: 6px 12px;
+        min-height: 32px;
+      }
+      
+      .filter-section {
+        gap: 6px;
+      }
+      
+      .filter-section label {
+        font-size: 12px;
+      }
+      
+      .filter-section select {
+        font-size: 13px;
+        padding: 8px 6px;
+        min-width: 90px;
+        min-height: 40px;
+      }
+      
+      .item {
+        padding: 12px 8px;
+        gap: 8px;
+        min-height: 64px;
+      }
+      
+      .item-label {
+        font-size: 15px;
+        gap: 4px;
+      }
+      
+      .tag-badge {
+        font-size: 10px;
+        padding: 3px 8px;
+      }
+      
+      .add-section {
+        padding: 10px 6px;
+        gap: 4px;
+      }
+      
+      .add-section input[type="text"] {
+        padding: 12px 10px;
+        min-height: 46px;
+        font-size: 15px;
+      }
+      
+      .add-section select {
+        width: 80px;
+        padding: 12px 6px;
+        font-size: 12px;
+        min-height: 46px;
+      }
+      
+      .add-section button {
+        padding: 12px 12px;
+        font-size: 14px;
+        min-height: 46px;
+        min-width: 50px;
+      }
+      
+      .modal-content {
+        padding: 20px;
+      }
+      
+      .modal-content h2 {
+        font-size: 20px;
+      }
+    }
+    
+    /* 中サイズ画面向けの調整 (401px - 720px) */
+    @media (min-width: 401px) and (max-width: 720px) {
+      .add-section select {
+        width: 100px;
+      }
+      
+      .filter-section select {
+        max-width: 45vw;
+      }
+    }
+    
     /* レスポンシブ対応 */
     @media (min-width: 721px) {
       body {
@@ -700,10 +806,43 @@
         border-radius: 24px 24px 0 0;
         padding: 24px;
         margin: 0 0 16px 0;
+        width: 100%;
+      }
+      
+      h1 {
+        font-size: 26px;
+      }
+      
+      .share-btn {
+        font-size: 14px;
+        padding: 10px 18px;
+        min-height: 40px;
+      }
+      
+      .filter-section select {
+        min-width: 140px;
+        max-width: none;
+        font-size: 15px;
+        padding: 10px 12px;
       }
       
       .item-list {
         padding: 0 12px;
+      }
+      
+      .item {
+        padding: 16px 14px;
+        gap: 12px;
+      }
+      
+      .item-label {
+        font-size: 17px;
+        gap: 8px;
+      }
+      
+      .tag-badge {
+        font-size: 12px;
+        padding: 5px 12px;
       }
       
       .add-section {
@@ -714,6 +853,27 @@
         transform: translateX(-50%);
         width: 720px;
         border-radius: 24px;
+        padding: 14px 16px;
+        gap: 10px;
+      }
+      
+      .add-section input[type="text"] {
+        padding: 16px 20px;
+        min-height: 54px;
+      }
+      
+      .add-section select {
+        width: 110px;
+        padding: 16px 12px;
+        font-size: 14px;
+        min-height: 54px;
+        max-width: none;
+      }
+      
+      .add-section button {
+        padding: 16px 24px;
+        font-size: 17px;
+        min-height: 54px;
       }
     }
     
