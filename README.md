@@ -1,5 +1,3 @@
-# Shared Shopping List 🛒
-
 シンプルで使いやすい、夫婦やパートナーと共有できる買い物リストアプリです。認証不要、URLだけで簡単に共有できます。
 
 [![Deploy to Cloudflare](https://img.shields.io/badge/Deploy%20to-Cloudflare-orange?logo=cloudflare)](https://workers.cloudflare.com/)
@@ -8,7 +6,9 @@
 ## 🌟 デモ
 
 **👉 [アプリを試す](https://main.shopping-list-app-8to.pages.dev)**
-<img width="200" height="450" alt="image" src="https://github.com/user-attachments/assets/614382c5-cb0f-4f96-8269-0bff2f3e1313" />
+<img width="200" height="450" alt="Shared Shopping List" src="https://github.com/user-attachments/assets/8425f181-ce51-444b-9ff4-3b9fd5d83b4f" />
+<img width="200" height="450" alt="Shared Shopping List-1" src="https://github.com/user-attachments/assets/59eab371-ef72-4f7a-bfd2-63f6bab7d8db" />
+
 
 
 ## ✨ 特徴
