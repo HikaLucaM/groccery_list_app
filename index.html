@@ -51,9 +51,9 @@
     /* 共有ボタン */
     .share-btn {
       padding: 8px 16px;
-      background: #28a745;
-      color: white;
-      border: none;
+      background: white;
+      color: #333;
+      border: 1px solid #ccc;
       border-radius: 6px;
       cursor: pointer;
       font-size: 13px;
@@ -64,7 +64,8 @@
     }
     
     .share-btn:hover {
-      background: #218838;
+      background: #f5f5f5;
+      border-color: #999;
     }
     
     .share-btn:active {
@@ -171,10 +172,11 @@
     /* フィルターエリア（1行レイアウト） */
     .filter-section {
       display: flex;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       align-items: center;
       gap: 8px;
       margin-top: 12px;
+      overflow-x: auto;
     }
     
     .filter-section label {
@@ -182,6 +184,7 @@
       font-weight: 600;
       color: #555;
       white-space: nowrap;
+      flex-shrink: 0;
     }
     
     .filter-section select {
@@ -190,7 +193,8 @@
       border-radius: 4px;
       font-size: 14px;
       background: white;
-      min-width: 140px;
+      min-width: 120px;
+      flex-shrink: 0;
       /* モバイル最適化 */
       min-height: 44px;
     }
@@ -350,33 +354,11 @@
       flex-shrink: 0;
     }
     
-    .add-tag-btn {
-      padding: 14px 12px;
-      background: #6c757d;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 20px;
-      line-height: 1;
-      min-height: 48px;
-      min-width: 48px;
-      flex-shrink: 0;
-    }
-    
     .add-section button:hover {
       background: #0056b3;
     }
     
     .add-section button:active {
-      transform: scale(0.95);
-    }
-    
-    .add-tag-btn:hover {
-      background: #5a6268;
-    }
-    
-    .add-tag-btn:active {
       transform: scale(0.95);
     }
     
@@ -615,7 +597,6 @@
     <select id="tagSelect" aria-label="タグを選択">
       <option value="">タグなし</option>
     </select>
-    <button class="add-tag-btn" id="addTagBtn" aria-label="タグを追加" title="カスタムタグを追加">+</button>
     <button id="addBtn" aria-label="追加">追加</button>
   </div>
 
@@ -740,7 +721,18 @@
         render();
       });
       document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
-      document.getElementById('addTagBtn').addEventListener('click', showCustomTagModal);
+      document.getElementById('tagSelect').addEventListener('change', (e) => {
+        if (e.target.value === '__custom__') {
+          showCustomTagModal();
+          e.target.value = ''; // Reset to default
+        }
+      });
+      document.getElementById('editItemTag').addEventListener('change', (e) => {
+        if (e.target.value === '__custom__') {
+          showCustomTagModalForEdit();
+          e.target.value = ''; // Reset to default
+        }
+      });
       document.getElementById('cancelTagBtn').addEventListener('click', hideCustomTagModal);
       document.getElementById('saveTagBtn').addEventListener('click', saveCustomTag);
       document.getElementById('customTagInput').addEventListener('keypress', (e) => {
@@ -798,6 +790,11 @@
         option.textContent = tag;
         tagSelect.appendChild(option);
       });
+      // Add custom tag option
+      const customOption = document.createElement('option');
+      customOption.value = '__custom__';
+      customOption.textContent = 'カスタム項目を追加...';
+      tagSelect.appendChild(customOption);
 
       // Update tag select in edit modal
       const editTagSelect = document.getElementById('editItemTag');
@@ -808,6 +805,11 @@
         option.textContent = tag;
         editTagSelect.appendChild(option);
       });
+      // Add custom tag option
+      const editCustomOption = document.createElement('option');
+      editCustomOption.value = '__custom__';
+      editCustomOption.textContent = 'カスタム項目を追加...';
+      editTagSelect.appendChild(editCustomOption);
 
       // Update tag filter select
       updateTagFilter();
@@ -844,7 +846,17 @@
       }
     }
 
+    let isEditModalContext = false;
+
     function showCustomTagModal() {
+      isEditModalContext = false;
+      document.getElementById('customTagModal').classList.add('show');
+      document.getElementById('customTagInput').value = '';
+      document.getElementById('customTagInput').focus();
+    }
+
+    function showCustomTagModalForEdit() {
+      isEditModalContext = true;
       document.getElementById('customTagModal').classList.add('show');
       document.getElementById('customTagInput').value = '';
       document.getElementById('customTagInput').focus();
@@ -874,8 +886,12 @@
       updateTagSelects();
       hideCustomTagModal();
       
-      // Select the newly added tag
-      document.getElementById('tagSelect').value = tagName;
+      // Select the newly added tag in the appropriate context
+      if (isEditModalContext) {
+        document.getElementById('editItemTag').value = tagName;
+      } else {
+        document.getElementById('tagSelect').value = tagName;
+      }
       
       showToast(`タグ「${tagName}」を追加しました`);
     }
