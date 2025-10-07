@@ -101,10 +101,17 @@ async function handlePut(request, kv, kvKey) {
     if (!item.id || typeof item.label !== 'string' || typeof item.checked !== 'boolean') {
       throw new Error('Invalid item structure');
     }
+    
+    // Tags support (optional, backward compatible)
+    const tags = Array.isArray(item.tags) 
+      ? item.tags.filter(t => typeof t === 'string' && t.length > 0)
+      : [];
+    
     return {
       id: item.id,
       label: item.label,
       checked: item.checked,
+      tags, // Array of tag strings
       pos: index, // Renumber positions 0..N-1
       updated_at: item.updated_at || Date.now(),
     };

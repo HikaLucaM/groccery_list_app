@@ -110,15 +110,22 @@
     /* フィルターエリア */
     .filter-section {
       display: flex;
-      align-items: center;
+      flex-direction: column;
       gap: 8px;
       margin-top: 8px;
+    }
+    
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
     
     .filter-section label {
       font-size: 13px;
       font-weight: 600;
       color: #555;
+      white-space: nowrap;
     }
     
     .filter-section select {
@@ -169,12 +176,47 @@
       hyphens: auto;
       padding-right: 12px;
       line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
     
-    .item-label.checked {
+    .item-label-text {
+      display: block;
+    }
+    
+    .item-label.checked .item-label-text {
       text-decoration: line-through;
       color: #999;
     }
+    
+    /* タグバッジ */
+    .item-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 2px;
+    }
+    
+    .tag-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: white;
+      white-space: nowrap;
+    }
+    
+    /* タグの色定義 */
+    .tag-woolies { background: #28a745; }
+    .tag-coles { background: #dc3545; }
+    .tag-aldi { background: #007bff; }
+    .tag-iga { background: #6f42c1; }
+    .tag-asian-grocery { background: #fd7e14; }
+    .tag-chemist { background: #e83e8c; }
+    .tag-kmart { background: #17a2b8; }
+    .tag-custom { background: #6c757d; }
     
     /* モバイル最適化: チェックボックスを右側（親指で押しやすい）、大きく */
     .item-checkbox-wrapper {
@@ -206,21 +248,39 @@
       padding: 10px 12px;
       /* セーフエリアを考慮（iPhone等） */
       padding-bottom: max(10px, env(safe-area-inset-bottom));
-      display: flex;
-      gap: 8px;
       box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
       z-index: 100;
       max-width: 720px;
       margin: 0 auto;
     }
     
-    .add-section input {
+    .add-section-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    
+    .add-section-row:last-child {
+      margin-bottom: 0;
+    }
+    
+    .add-section input[type="text"] {
       flex: 1;
       padding: 14px 16px;
       border: 1px solid #ccc;
       border-radius: 8px;
       font-size: 16px;
       /* iOS対策: ズーム防止 */
+      min-height: 48px;
+    }
+    
+    .add-section select {
+      flex: 1;
+      padding: 14px 16px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+      background: white;
       min-height: 48px;
     }
     
@@ -239,12 +299,110 @@
       min-width: 80px;
     }
     
+    .add-tag-btn {
+      padding: 14px 16px;
+      background: #6c757d;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      min-height: 48px;
+    }
+    
     .add-section button:hover {
       background: #0056b3;
     }
     
     .add-section button:active {
       transform: scale(0.95);
+    }
+    
+    .add-tag-btn:hover {
+      background: #5a6268;
+    }
+    
+    .add-tag-btn:active {
+      transform: scale(0.95);
+    }
+    
+    /* モーダル */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .modal.show {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    
+    .modal-content h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #333;
+    }
+    
+    .modal-content input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    
+    .modal-actions button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      min-height: 40px;
+    }
+    
+    .modal-btn-primary {
+      background: #007bff;
+      color: white;
+    }
+    
+    .modal-btn-primary:hover {
+      background: #0056b3;
+    }
+    
+    .modal-btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .modal-btn-secondary:hover {
+      background: #5a6268;
     }
     
     /* 状態表示 */
@@ -357,11 +515,19 @@
       
       <!-- フィルター -->
       <div class="filter-section">
-        <label for="filterSelect">表示:</label>
-        <select id="filterSelect" aria-label="表示フィルタ">
-          <option value="unchecked">未チェックのみ</option>
-          <option value="all">すべて</option>
-        </select>
+        <div class="filter-row">
+          <label for="filterSelect">表示:</label>
+          <select id="filterSelect" aria-label="表示フィルタ">
+            <option value="unchecked">未チェックのみ</option>
+            <option value="all">すべて</option>
+          </select>
+        </div>
+        <div class="filter-row">
+          <label for="tagFilterSelect">タグ:</label>
+          <select id="tagFilterSelect" aria-label="タグフィルタ">
+            <option value="all">すべてのタグ</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -373,12 +539,32 @@
 
   <!-- 下部固定の入力バー -->
   <div class="add-section">
-    <input type="text" id="newItemInput" placeholder="買うものを入力..." aria-label="新しいアイテム">
-    <button id="addBtn" aria-label="追加">追加</button>
+    <div class="add-section-row">
+      <input type="text" id="newItemInput" placeholder="買うものを入力..." aria-label="新しいアイテム">
+      <button id="addBtn" aria-label="追加">追加</button>
+    </div>
+    <div class="add-section-row">
+      <select id="tagSelect" aria-label="タグを選択">
+        <option value="">タグなし</option>
+      </select>
+      <button class="add-tag-btn" id="addTagBtn" aria-label="タグを追加">+タグ</button>
+    </div>
   </div>
 
   <!-- トースト通知 -->
   <div class="toast" id="toast"></div>
+
+  <!-- カスタムタグ追加モーダル -->
+  <div class="modal" id="customTagModal">
+    <div class="modal-content">
+      <h2>カスタムタグを追加</h2>
+      <input type="text" id="customTagInput" placeholder="新しいタグ名を入力..." maxlength="20">
+      <div class="modal-actions">
+        <button class="modal-btn-secondary" id="cancelTagBtn">キャンセル</button>
+        <button class="modal-btn-primary" id="saveTagBtn">追加</button>
+      </div>
+    </div>
+  </div>
 
   <script>
     // ============================================================
@@ -387,15 +573,39 @@
     const API_BASE = 'https://shared-shopping-list.grocery-shopping-list.workers.dev';
     const POLL_INTERVAL_MS = 7000; // 7秒間隔で自動更新
 
+    // Preset tags
+    const PRESET_TAGS = [
+      'Woolies',
+      'Coles',
+      'ALDI',
+      'IGA',
+      'Asian Grocery',
+      'Chemist',
+      'Kmart'
+    ];
+
+    // Tag color mapping
+    const TAG_COLORS = {
+      'Woolies': 'tag-woolies',
+      'Coles': 'tag-coles',
+      'ALDI': 'tag-aldi',
+      'IGA': 'tag-iga',
+      'Asian Grocery': 'tag-asian-grocery',
+      'Chemist': 'tag-chemist',
+      'Kmart': 'tag-kmart'
+    };
+
     // ============================================================
     // State
     // ============================================================
     let listData = { title: 'Shopping', items: [] };
     let currentFilter = 'unchecked';
+    let currentTagFilter = 'all';
     let token = '';
     let pollTimer = null;
     let lastSavedState = '';
     let isSaving = false; // PUT中はポーリング結果を無視
+    let customTags = []; // localStorage から読み込むカスタムタグ
 
     // ============================================================
     // Initialization
@@ -411,6 +621,12 @@
         window.location.href = newUrl;
         return;
       }
+
+      // Load custom tags from localStorage
+      loadCustomTags();
+
+      // Initialize tag selects
+      updateTagSelects();
 
       // Display share URL
       document.getElementById('shareUrlInput').value = window.location.href;
@@ -433,8 +649,134 @@
         currentFilter = e.target.value;
         render();
       });
+      document.getElementById('tagFilterSelect').addEventListener('change', (e) => {
+        currentTagFilter = e.target.value;
+        render();
+      });
       document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
+      document.getElementById('addTagBtn').addEventListener('click', showCustomTagModal);
+      document.getElementById('cancelTagBtn').addEventListener('click', hideCustomTagModal);
+      document.getElementById('saveTagBtn').addEventListener('click', saveCustomTag);
+      document.getElementById('customTagInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveCustomTag();
+        }
+      });
     })();
+
+    // ============================================================
+    // Tag Management
+    // ============================================================
+    function loadCustomTags() {
+      try {
+        const stored = localStorage.getItem('customTags');
+        customTags = stored ? JSON.parse(stored) : [];
+      } catch (e) {
+        console.error('Failed to load custom tags:', e);
+        customTags = [];
+      }
+    }
+
+    function saveCustomTagsToStorage() {
+      try {
+        localStorage.setItem('customTags', JSON.stringify(customTags));
+      } catch (e) {
+        console.error('Failed to save custom tags:', e);
+      }
+    }
+
+    function getAllTags() {
+      return [...PRESET_TAGS, ...customTags];
+    }
+
+    function updateTagSelects() {
+      const allTags = getAllTags();
+      
+      // Update tag select in add section
+      const tagSelect = document.getElementById('tagSelect');
+      tagSelect.innerHTML = '<option value="">タグなし</option>';
+      allTags.forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = tag;
+        tagSelect.appendChild(option);
+      });
+
+      // Update tag filter select
+      updateTagFilter();
+    }
+
+    function updateTagFilter() {
+      const tagFilterSelect = document.getElementById('tagFilterSelect');
+      const currentValue = tagFilterSelect.value;
+      
+      // Get unique tags from current items
+      const usedTags = new Set();
+      listData.items.forEach(item => {
+        if (item.tags && Array.isArray(item.tags)) {
+          item.tags.forEach(tag => usedTags.add(tag));
+        }
+      });
+
+      tagFilterSelect.innerHTML = '<option value="all">すべてのタグ</option>';
+      
+      // Add used tags to filter
+      Array.from(usedTags).sort().forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = tag;
+        tagFilterSelect.appendChild(option);
+      });
+
+      // Restore previous selection if still available
+      if (currentValue && (currentValue === 'all' || usedTags.has(currentValue))) {
+        tagFilterSelect.value = currentValue;
+      } else {
+        currentTagFilter = 'all';
+        tagFilterSelect.value = 'all';
+      }
+    }
+
+    function showCustomTagModal() {
+      document.getElementById('customTagModal').classList.add('show');
+      document.getElementById('customTagInput').value = '';
+      document.getElementById('customTagInput').focus();
+    }
+
+    function hideCustomTagModal() {
+      document.getElementById('customTagModal').classList.remove('show');
+    }
+
+    function saveCustomTag() {
+      const input = document.getElementById('customTagInput');
+      const tagName = input.value.trim();
+
+      if (!tagName) {
+        showToast('タグ名を入力してください', true);
+        return;
+      }
+
+      const allTags = getAllTags();
+      if (allTags.includes(tagName)) {
+        showToast('このタグは既に存在します', true);
+        return;
+      }
+
+      customTags.push(tagName);
+      saveCustomTagsToStorage();
+      updateTagSelects();
+      hideCustomTagModal();
+      
+      // Select the newly added tag
+      document.getElementById('tagSelect').value = tagName;
+      
+      showToast(`タグ「${tagName}」を追加しました`);
+    }
+
+    function getTagClass(tag) {
+      return TAG_COLORS[tag] || 'tag-custom';
+    }
 
     // ============================================================
     // Token Generation
@@ -553,16 +895,21 @@
       
       if (!label) return;
 
+      const tagSelect = document.getElementById('tagSelect');
+      const selectedTag = tagSelect.value;
+
       const newItem = {
         id: crypto.randomUUID(),
         label,
         checked: false,
+        tags: selectedTag ? [selectedTag] : [],
         pos: listData.items.length,
         updated_at: Date.now(),
       };
 
       listData.items.push(newItem);
       input.value = '';
+      tagSelect.value = ''; // Reset tag selection
       
       // 楽観的UI更新
       render();
@@ -600,10 +947,17 @@
     function render() {
       const listEl = document.getElementById('itemList');
       
-      // Filter items
+      // Filter items by check status
       let itemsToShow = listData.items;
       if (currentFilter === 'unchecked') {
         itemsToShow = listData.items.filter(item => !item.checked);
+      }
+
+      // Filter items by tag
+      if (currentTagFilter && currentTagFilter !== 'all') {
+        itemsToShow = itemsToShow.filter(item => {
+          return item.tags && item.tags.includes(currentTagFilter);
+        });
       }
 
       // Sort for display: unchecked first, then by pos
@@ -616,13 +970,21 @@
 
       if (itemsToShow.length === 0) {
         listEl.innerHTML = '<li class="empty-state">アイテムがありません</li>';
+        updateTagFilter(); // Update tag filter even when empty
         return;
       }
 
-      listEl.innerHTML = itemsToShow.map(item => `
+      listEl.innerHTML = itemsToShow.map(item => {
+        const tags = item.tags || [];
+        const tagBadges = tags.map(tag => 
+          `<span class="tag-badge ${getTagClass(tag)}">${escapeHtml(tag)}</span>`
+        ).join('');
+
+        return `
         <li class="item" onclick="handleToggle('${item.id}')">
           <span class="item-label ${item.checked ? 'checked' : ''}">
-            ${escapeHtml(item.label)}
+            <span class="item-label-text">${escapeHtml(item.label)}</span>
+            ${tagBadges ? `<div class="item-tags">${tagBadges}</div>` : ''}
           </span>
           <div class="item-checkbox-wrapper">
             <input 
@@ -634,7 +996,11 @@
             >
           </div>
         </li>
-      `).join('');
+      `;
+      }).join('');
+
+      // Update tag filter options based on current items
+      updateTagFilter();
     }
 
     // ============================================================
