@@ -248,20 +248,12 @@
       padding: 10px 12px;
       /* セーフエリアを考慮（iPhone等） */
       padding-bottom: max(10px, env(safe-area-inset-bottom));
+      display: flex;
+      gap: 6px;
       box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
       z-index: 100;
       max-width: 720px;
       margin: 0 auto;
-    }
-    
-    .add-section-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    
-    .add-section-row:last-child {
-      margin-bottom: 0;
     }
     
     .add-section input[type="text"] {
@@ -275,17 +267,18 @@
     }
     
     .add-section select {
-      flex: 1;
-      padding: 14px 16px;
+      width: 120px;
+      padding: 14px 12px;
       border: 1px solid #ccc;
       border-radius: 8px;
-      font-size: 14px;
+      font-size: 13px;
       background: white;
       min-height: 48px;
+      flex-shrink: 0;
     }
     
     .add-section button {
-      padding: 14px 24px;
+      padding: 14px 20px;
       background: #007bff;
       color: white;
       border: none;
@@ -296,20 +289,21 @@
       white-space: nowrap;
       /* モバイル最適化 */
       min-height: 48px;
-      min-width: 80px;
+      flex-shrink: 0;
     }
     
     .add-tag-btn {
-      padding: 14px 16px;
+      padding: 14px 12px;
       background: #6c757d;
       color: white;
       border: none;
       border-radius: 8px;
       cursor: pointer;
-      font-size: 14px;
-      font-weight: 600;
-      white-space: nowrap;
+      font-size: 20px;
+      line-height: 1;
       min-height: 48px;
+      min-width: 48px;
+      flex-shrink: 0;
     }
     
     .add-section button:hover {
@@ -362,12 +356,30 @@
       color: #333;
     }
     
+    .modal-content label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #555;
+      margin-bottom: 6px;
+    }
+    
     .modal-content input {
       width: 100%;
       padding: 12px;
       border: 1px solid #ccc;
       border-radius: 6px;
       font-size: 16px;
+      margin-bottom: 16px;
+    }
+    
+    .modal-content select {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      background: white;
       margin-bottom: 16px;
     }
     
@@ -539,20 +551,33 @@
 
   <!-- 下部固定の入力バー -->
   <div class="add-section">
-    <div class="add-section-row">
-      <input type="text" id="newItemInput" placeholder="買うものを入力..." aria-label="新しいアイテム">
-      <button id="addBtn" aria-label="追加">追加</button>
-    </div>
-    <div class="add-section-row">
-      <select id="tagSelect" aria-label="タグを選択">
-        <option value="">タグなし</option>
-      </select>
-      <button class="add-tag-btn" id="addTagBtn" aria-label="タグを追加">+タグ</button>
-    </div>
+    <input type="text" id="newItemInput" placeholder="買うものを入力..." aria-label="新しいアイテム">
+    <select id="tagSelect" aria-label="タグを選択">
+      <option value="">タグなし</option>
+    </select>
+    <button class="add-tag-btn" id="addTagBtn" aria-label="タグを追加" title="カスタムタグを追加">+</button>
+    <button id="addBtn" aria-label="追加">追加</button>
   </div>
 
   <!-- トースト通知 -->
   <div class="toast" id="toast"></div>
+
+  <!-- アイテム編集モーダル -->
+  <div class="modal" id="editItemModal">
+    <div class="modal-content">
+      <h2>アイテムを編集</h2>
+      <label for="editItemLabel">アイテム名</label>
+      <input type="text" id="editItemLabel" placeholder="アイテム名">
+      <label for="editItemTag">タグ</label>
+      <select id="editItemTag">
+        <option value="">タグなし</option>
+      </select>
+      <div class="modal-actions">
+        <button class="modal-btn-secondary" id="cancelEditBtn">キャンセル</button>
+        <button class="modal-btn-primary" id="saveEditBtn">保存</button>
+      </div>
+    </div>
+  </div>
 
   <!-- カスタムタグ追加モーダル -->
   <div class="modal" id="customTagModal">
@@ -606,6 +631,7 @@
     let lastSavedState = '';
     let isSaving = false; // PUT中はポーリング結果を無視
     let customTags = []; // localStorage から読み込むカスタムタグ
+    let editingItemId = null; // 編集中のアイテムID
 
     // ============================================================
     // Initialization
@@ -663,6 +689,16 @@
           saveCustomTag();
         }
       });
+      
+      // Edit modal listeners
+      document.getElementById('cancelEditBtn').addEventListener('click', hideEditModal);
+      document.getElementById('saveEditBtn').addEventListener('click', saveEditItem);
+      document.getElementById('editItemLabel').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveEditItem();
+        }
+      });
     })();
 
     // ============================================================
@@ -701,6 +737,16 @@
         option.value = tag;
         option.textContent = tag;
         tagSelect.appendChild(option);
+      });
+
+      // Update tag select in edit modal
+      const editTagSelect = document.getElementById('editItemTag');
+      editTagSelect.innerHTML = '<option value="">タグなし</option>';
+      allTags.forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = tag;
+        editTagSelect.appendChild(option);
       });
 
       // Update tag filter select
@@ -776,6 +822,49 @@
 
     function getTagClass(tag) {
       return TAG_COLORS[tag] || 'tag-custom';
+    }
+
+    // ============================================================
+    // Item Edit Modal
+    // ============================================================
+    function showEditModal(id) {
+      const item = listData.items.find(i => i.id === id);
+      if (!item) return;
+
+      editingItemId = id;
+      document.getElementById('editItemLabel').value = item.label;
+      document.getElementById('editItemTag').value = (item.tags && item.tags.length > 0) ? item.tags[0] : '';
+      document.getElementById('editItemModal').classList.add('show');
+      document.getElementById('editItemLabel').focus();
+    }
+
+    function hideEditModal() {
+      editingItemId = null;
+      document.getElementById('editItemModal').classList.remove('show');
+    }
+
+    function saveEditItem() {
+      if (!editingItemId) return;
+
+      const item = listData.items.find(i => i.id === editingItemId);
+      if (!item) return;
+
+      const newLabel = document.getElementById('editItemLabel').value.trim();
+      const newTag = document.getElementById('editItemTag').value;
+
+      if (!newLabel) {
+        showToast('アイテム名を入力してください', true);
+        return;
+      }
+
+      item.label = newLabel;
+      item.tags = newTag ? [newTag] : [];
+      item.updated_at = Date.now();
+
+      hideEditModal();
+      render();
+      saveList();
+      showToast('アイテムを更新しました');
     }
 
     // ============================================================
@@ -960,11 +1049,17 @@
         });
       }
 
-      // Sort for display: unchecked first, then by pos
+      // Sort for display
       itemsToShow.sort((a, b) => {
         if (a.checked !== b.checked) {
           return a.checked ? 1 : -1;
         }
+        
+        // When showing all items (including checked), sort checked items by updated_at (newest first)
+        if (currentFilter === 'all' && a.checked && b.checked) {
+          return b.updated_at - a.updated_at;
+        }
+        
         return a.pos - b.pos;
       });
 
@@ -981,7 +1076,7 @@
         ).join('');
 
         return `
-        <li class="item" onclick="handleToggle('${item.id}')">
+        <li class="item" onclick="showEditModal('${item.id}')">
           <span class="item-label ${item.checked ? 'checked' : ''}">
             <span class="item-label-text">${escapeHtml(item.label)}</span>
             ${tagBadges ? `<div class="item-tags">${tagBadges}</div>` : ''}
