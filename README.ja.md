@@ -6,18 +6,19 @@ Cloudflare Workers と KV で動く、URL共有型の買い物リストアプリ
 
 ## 🌟 デモ
 
-- 公開URL: https://main.shopping-list-app-8to.pages.dev
+- 公開URL: https://shared-shopping-list.grocery-shopping-list.workers.dev
 - スクリーンショット:
   <img width="200" height="450" alt="Shared Shopping List" src="https://github.com/user-attachments/assets/8425f181-ce51-444b-9ff4-3b9fd5d83b4f" />
   <img width="200" height="450" alt="Shared Shopping List-1" src="https://github.com/user-attachments/assets/59eab371-ef72-4f7a-bfd2-63f6bab7d8db" />
 
 ## ✨ 特徴
 
-- 秘密のトークン付きURLを共有するだけで共同編集
-- 7秒ごとのポーリングとバージョン管理で競合を自動解決
-- プリセット＋カスタムタグでアイテムを整理
-- モバイル最適化されたUIとスワイプ操作
-- Cloudflare無料枠内で運用可能
+- **AI買い物リスト生成** - AI機能で買い物リストを自動生成
+- **簡単共有** - 秘密のトークン付きURLを共有するだけで共同編集
+- **リアルタイム同期** - 7秒ごとのポーリングとバージョン管理で競合を自動解決
+- **柔軟なタグ管理** - プリセット＋カスタムタグでアイテムを整理
+- **モバイル最適化** - モバイル最適化されたUIとスワイプ操作
+- **無料運用可能** - Cloudflare無料枠内で運用可能
 
 ## 🚀 クイックスタート
 
@@ -43,10 +44,11 @@ npx wrangler pages deploy public --project-name=shopping-list-app
 
 ## 🛠️ 仕組み
 
-- フロントエンド: `index.html`（Vanilla JS）
-- バックエンド: Cloudflare Worker が KV に保存し、バージョン付きでマージ
-- ストレージ: Cloudflare KV（キー形式: `list:${token}`）
-- 同期: クライアントが7秒ごとにポーリングし、baseVersion と deletedItemIds を送信
+- **フロントエンド**: `index.html`（Vanilla JS）
+- **バックエンド**: Cloudflare Worker が KV に保存し、バージョン付きでマージ
+- **ストレージ**: Cloudflare KV（キー形式: `list:${token}`）
+- **同期**: クライアントが7秒ごとにポーリングし、baseVersion と deletedItemIds を送信
+- **AI統合**: Cloudflare Workers AI（Llamaモデル）による自然言語からの買い物リスト生成
 
 ## 📄 ライセンス
 

@@ -53,6 +53,40 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    
+    /* AI生成ボタン（ヘッダー内） */
+    .ai-generate-btn {
+      padding: 8px 12px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+      min-height: 36px;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+      flex-shrink: 0;
+    }
+    
+    .ai-generate-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+    }
+    
+    .ai-generate-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .ai-generate-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
     }
     
     /* 共有ボタン */
@@ -506,39 +540,6 @@
       transform: scale(0.96);
     }
     
-    /* AI生成ボタン */
-    .ai-generate-btn {
-      padding: 14px 16px;
-      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-      color: white;
-      border: none;
-      border-radius: 12px;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 800;
-      white-space: nowrap;
-      min-height: 50px;
-      flex-shrink: 0;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
-      transition: all 0.3s ease;
-      min-width: 60px;
-    }
-    
-    .ai-generate-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
-    }
-    
-    .ai-generate-btn:active {
-      transform: scale(0.96);
-    }
-    
-    .ai-generate-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      transform: none;
-    }
-    
     /* モーダル */
     .modal {
       display: none;
@@ -767,6 +768,81 @@
       transform: translateX(-50%) translateY(-8px);
     }
     
+    /* AI生成ローディングモーダル */
+    .ai-loading-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+      backdrop-filter: blur(8px);
+      animation: fadeIn 0.2s ease;
+    }
+    
+    .ai-loading-modal.show {
+      display: flex;
+    }
+    
+    .ai-loading-content {
+      background: white;
+      padding: 40px 32px;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      text-align: center;
+      max-width: 90%;
+      width: 360px;
+      animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .ai-loading-spinner {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 24px;
+      border: 4px solid #e5e7eb;
+      border-top-color: #10b981;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .ai-loading-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+    
+    .ai-loading-subtext {
+      font-size: 14px;
+      color: #6b7280;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+    
+    .ai-loading-dots {
+      display: inline-block;
+    }
+    
+    .ai-loading-dots::after {
+      content: '';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+    
+    @keyframes dots {
+      0%, 20% { content: ''; }
+      40% { content: '.'; }
+      60% { content: '..'; }
+      80%, 100% { content: '...'; }
+    }
+    
     /* 自動更新インジケーター */
     .sync-indicator {
       display: inline-block;
@@ -986,6 +1062,7 @@
       <h1>
         <span id="title">Shopping List</span>
         <span class="sync-indicator" id="syncIndicator"></span>
+        <button id="aiGenerateBtn" class="ai-generate-btn" aria-label="AIでリストを作成" title="AIでリストを作成">🤖 AI</button>
         <button class="share-btn" onclick="showShareModal()">Share</button>
       </h1>
 
@@ -1030,11 +1107,19 @@
       <option value="">タグなし</option>
     </select>
     <button id="addBtn" aria-label="追加">追加</button>
-    <button id="aiGenerateBtn" class="ai-generate-btn" aria-label="AIでリストを作成">🤖 AI</button>
   </div>
 
   <!-- トースト通知 -->
   <div class="toast" id="toast"></div>
+
+  <!-- AI生成ローディングモーダル -->
+  <div class="ai-loading-modal" id="aiLoadingModal">
+    <div class="ai-loading-content">
+      <div class="ai-loading-spinner"></div>
+      <div class="ai-loading-text">🤖 AIが買い物リストを生成中<span class="ai-loading-dots"></span></div>
+      <div class="ai-loading-subtext">しばらくお待ちください</div>
+    </div>
+  </div>
 
   <!-- アイテム編集モーダル -->
   <div class="modal" id="editItemModal">
@@ -1517,12 +1602,13 @@
       }
       
       const aiBtn = document.getElementById('aiGenerateBtn');
+      const loadingModal = document.getElementById('aiLoadingModal');
       const originalText = aiBtn.textContent;
       
       try {
-        // Disable button and show loading state
+        // Show loading modal and disable button
+        loadingModal.classList.add('show');
         aiBtn.disabled = true;
-        aiBtn.textContent = '生成中...';
         aiGenerateCooldown = true;
         
         console.log('[DEBUG] Starting AI generation request...');
@@ -1606,6 +1692,8 @@
           
           if (normalizedSuggestions.length > 0) {
             console.log('[DEBUG] Showing AI suggestions modal');
+            // Hide loading modal before showing suggestions
+            loadingModal.classList.remove('show');
             showAISuggestionsModal(normalizedSuggestions);
             return;
           } else {
@@ -1619,12 +1707,13 @@
       } catch (error) {
         console.error('Error in AI generation:', error);
         const errorMessage = error.message || 'AI生成に失敗しました。もう一度お試しください。';
+        loadingModal.classList.remove('show');
         alert(`エラー: ${errorMessage}`);
       } finally {
-        // Re-enable button after delay (free-tier model: extended cooldown)
+        // Hide loading modal and re-enable button after delay
+        loadingModal.classList.remove('show');
         setTimeout(() => {
           aiBtn.disabled = false;
-          aiBtn.textContent = originalText;
           aiGenerateCooldown = false;
         }, 5000); // 5 second cooldown for free-tier rate limits
       }
