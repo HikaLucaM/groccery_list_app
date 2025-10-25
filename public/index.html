@@ -57,30 +57,31 @@
       flex-wrap: wrap;
     }
     
-    /* AI生成ボタン（ヘッダー内） */
+    /* AI生成ボタン（入力バー内） */
     .ai-generate-btn {
-      padding: 8px 12px;
+      padding: 14px 12px;
       background: linear-gradient(135deg, #10b981 0%, #059669 100%);
       color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 12px;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 700;
       white-space: nowrap;
-      min-height: 36px;
+      min-height: 50px;
+      min-width: 60px;
       transition: all 0.3s ease;
-      box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
       flex-shrink: 0;
     }
     
     .ai-generate-btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
     }
     
     .ai-generate-btn:active {
-      transform: scale(0.95);
+      transform: scale(0.96);
     }
     
     .ai-generate-btn:disabled {
@@ -941,6 +942,13 @@
         min-width: 50px;
       }
       
+      .ai-generate-btn {
+        padding: 12px 10px;
+        font-size: 14px;
+        min-height: 46px;
+        min-width: 50px;
+      }
+      
       .modal-content {
         padding: 20px;
       }
@@ -1047,6 +1055,13 @@
         font-size: 17px;
         min-height: 54px;
       }
+      
+      .ai-generate-btn {
+        padding: 16px 20px;
+        font-size: 17px;
+        min-height: 54px;
+        min-width: 70px;
+      }
     }
     
     /* ダークモード対応のヒント（将来的に実装可能） */
@@ -1062,7 +1077,6 @@
       <h1>
         <span id="title">Shopping List</span>
         <span class="sync-indicator" id="syncIndicator"></span>
-        <button id="aiGenerateBtn" class="ai-generate-btn" aria-label="AIでリストを作成" title="AIでリストを作成">🤖 AI</button>
         <button class="share-btn" onclick="showShareModal()">Share</button>
       </h1>
 
@@ -1106,6 +1120,7 @@
     <select id="tagSelect" aria-label="タグを選択">
       <option value="">タグなし</option>
     </select>
+    <button id="aiGenerateBtn" class="ai-generate-btn" aria-label="AIでリストを作成" title="AIでリストを作成">🤖 AI</button>
     <button id="addBtn" aria-label="追加">追加</button>
   </div>
 
