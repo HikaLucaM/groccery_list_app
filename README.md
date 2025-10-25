@@ -58,4 +58,4 @@ npx wrangler pages deploy public --project-name=shopping-list-app
 
 ## 📮 Contact
 
-- Open an [issue](https://github.com/HikaLucaM/groccery_list_app/issues).
+- Open an [issue](https://github.com/HikaLucaM/groccery_list_app/issues)
