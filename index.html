@@ -661,6 +661,69 @@
       color: white;
     }
     
+    /* AI提案モーダル専用スタイル */
+    .ai-suggestions-content {
+      max-width: 500px;
+    }
+    
+    .ai-suggestions-description {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+    
+    .ai-suggestions-list {
+      max-height: 400px;
+      overflow-y: auto;
+      margin: 16px 0;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      background: #f9fafb;
+    }
+    
+    .ai-suggestions-list label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+      background: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+    }
+    
+    .ai-suggestions-list label:hover {
+      border-color: #667eea;
+      transform: translateX(4px);
+    }
+    
+    .ai-suggestions-list input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      margin: 0;
+    }
+    
+    .ai-suggestions-list .suggestion-label {
+      flex: 1;
+      font-weight: 600;
+      color: #1a1a1a;
+      font-size: 15px;
+    }
+    
+    .ai-suggestions-list .suggestion-tag {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
     /* 状態表示 */
     .empty-state {
       text-align: center;
@@ -998,6 +1061,19 @@
       <div class="modal-actions">
         <button class="modal-btn-secondary" id="cancelTagBtn">キャンセル</button>
         <button class="modal-btn-primary" id="saveTagBtn">追加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI提案モーダル -->
+  <div class="modal" id="aiSuggestionsModal">
+    <div class="modal-content ai-suggestions-content">
+      <h2>🤖 AIの買い物リスト提案</h2>
+      <p class="ai-suggestions-description">追加したい項目を選択してください</p>
+      <div class="ai-suggestions-list" id="suggestionList"></div>
+      <div class="modal-actions">
+        <button class="modal-btn-secondary" id="cancelSuggestions">キャンセル</button>
+        <button class="modal-btn-primary" id="addSelected">選択した項目を追加</button>
       </div>
     </div>
   </div>
@@ -1424,7 +1500,7 @@
 
     /**
      * AI Generate Shopping List
-     * Calls /api/generate to create a list from natural language prompt
+     * Shows a modal with AI suggestions for user confirmation
      */
     let aiGenerateCooldown = false;
     
@@ -1460,38 +1536,119 @@
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || 'AI generation failed');
+          const errorMessage = errorData.error || 'AI生成に失敗しました';
+          console.error('AI generation error:', errorData);
+          throw new Error(errorMessage);
         }
         
         const result = await response.json();
         
-        if (result.status === 'success' && Array.isArray(result.items)) {
-          // Update list data with generated items
-          listData = {
-            title: listData.title,
-            items: result.items,
-            version: (listData.version || 0) + 1,
-            updated_at: Date.now(),
-          };
-          
-          render();
-          await saveList();
-          showToast(`${result.items.length}件のアイテムを生成しました`);
+        if (result.status === 'ok' && Array.isArray(result.suggestions)) {
+          // Show AI suggestions modal
+          showAISuggestionsModal(result.suggestions);
         } else {
           throw new Error('Invalid response format');
         }
         
       } catch (error) {
         console.error('Error in AI generation:', error);
-        alert('AI生成に失敗しました。もう一度お試しください。');
+        const errorMessage = error.message || 'AI生成に失敗しました。もう一度お試しください。';
+        alert(`エラー: ${errorMessage}`);
       } finally {
-        // Re-enable button after delay
+        // Re-enable button after delay (free-tier model: extended cooldown)
         setTimeout(() => {
           aiBtn.disabled = false;
           aiBtn.textContent = originalText;
           aiGenerateCooldown = false;
-        }, 3000); // 3 second cooldown
+        }, 5000); // 5 second cooldown for free-tier rate limits
       }
+    }
+
+    /**
+     * Show AI Suggestions Modal
+     * Displays suggested items for user to select
+     */
+    function showAISuggestionsModal(suggestions) {
+      const modal = document.getElementById('aiSuggestionsModal');
+      const listDiv = document.getElementById('suggestionList');
+      
+      // Clear previous suggestions
+      listDiv.innerHTML = '';
+      
+      // Add each suggestion as a checkbox
+      for (const item of suggestions) {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = true;
+        checkbox.dataset.label = item.label;
+        checkbox.dataset.tag = item.tags[0] || 'Woolies';
+        
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'suggestion-label';
+        labelSpan.textContent = item.label;
+        
+        const tagSpan = document.createElement('span');
+        tagSpan.className = 'suggestion-tag';
+        tagSpan.textContent = item.tags[0] || 'Woolies';
+        
+        label.appendChild(checkbox);
+        label.appendChild(labelSpan);
+        label.appendChild(tagSpan);
+        
+        listDiv.appendChild(label);
+      }
+      
+      // Show modal
+      modal.classList.add('show');
+      
+      // Setup button handlers (remove old listeners first)
+      const addBtn = document.getElementById('addSelected');
+      const cancelBtn = document.getElementById('cancelSuggestions');
+      
+      const newAddBtn = addBtn.cloneNode(true);
+      const newCancelBtn = cancelBtn.cloneNode(true);
+      addBtn.parentNode.replaceChild(newAddBtn, addBtn);
+      cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+      
+      // Add button: Add selected items to list
+      newAddBtn.addEventListener('click', () => {
+        const selected = Array.from(listDiv.querySelectorAll('input:checked')).map(cb => ({
+          id: crypto.randomUUID(),
+          label: cb.dataset.label,
+          tags: [cb.dataset.tag],
+          checked: false,
+          pos: listData.items.length + Math.random(), // Temporary pos, will be renumbered
+          updated_at: Date.now()
+        }));
+        
+        if (selected.length === 0) {
+          alert('追加するアイテムを選択してください');
+          return;
+        }
+        
+        // Add to list
+        listData.items.push(...selected);
+        
+        // Renumber positions
+        listData.items.forEach((item, index) => {
+          item.pos = index;
+        });
+        
+        // Update UI and save
+        render();
+        saveList();
+        
+        // Close modal
+        modal.classList.remove('show');
+        
+        showToast(`${selected.length}件のアイテムを追加しました`);
+      });
+      
+      // Cancel button: Close modal
+      newCancelBtn.addEventListener('click', () => {
+        modal.classList.remove('show');
+      });
     }
 
     // ============================================================

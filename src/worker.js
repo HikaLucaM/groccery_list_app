@@ -82,6 +82,22 @@ export default {
       });
     }
 
+    // Serve index.html for root path
+    if (url.pathname === '/' || url.pathname === '/index.html') {
+      try {
+        const asset = await env.ASSETS.fetch(new URL('/index.html', request.url));
+        return new Response(asset.body, {
+          headers: {
+            'Content-Type': 'text/html; charset=utf-8',
+            'Cache-Control': 'public, max-age=3600',
+          },
+        });
+      } catch (error) {
+        console.error('Error serving index.html:', error);
+        return new Response('App not found', { status: 404 });
+      }
+    }
+
     // Parse path: /api/generate
     if (url.pathname === '/api/generate' && method === 'POST') {
       return await handleGenerate(request, env);
@@ -313,8 +329,150 @@ function normalizeItem(item, fallbackPos = 0) {
 }
 
 /**
+ * Helper: Call OpenRouter API with a specific model
+ * free-tier model switch
+ */
+async function callOpenRouter(model, prompt, apiKey, signal) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://shared-shopping-list.grocery-shopping-list.workers.dev',
+      'X-Title': 'Shared Shopping List',
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.2,
+      top_p: 0.9,
+      max_tokens: 600,
+      messages: [
+        {
+          role: 'system',
+          content: 'You generate STRICT JSON shopping lists in Japanese. Output ONLY minified JSON with this schema and nothing else.',
+        },
+        {
+          role: 'user',
+          content: `${prompt}。以下のJSONスキーマに完全準拠し、余計な文章は一切返さないこと。必ずminifiedなJSONのみ出力: {"items":[{"label":"string","tags":"string[]","checked":false}]}.`,
+        },
+      ],
+    }),
+    signal,
+  });
+  return response;
+}
+
+/**
+ * Helper: Generate with fallback models
+ * free-tier model switch
+ */
+async function generateWithFallbacks(prompt, env) {
+  // free-tier model switch: Default to free model
+  const DEFAULT_MODEL = env.MODEL ?? 'meta-llama/llama-3-8b-instruct:free';
+  
+  // free-tier model switch: Fallback models
+  const FALLBACK_MODELS = (env.MODEL_FALLBACKS ?? 'mistralai/mistral-7b-instruct:free,openrouter/auto').split(',');
+  
+  const models = [DEFAULT_MODEL, ...FALLBACK_MODELS];
+  const apiKey = env.OPENROUTER_API_KEY;
+  
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+  
+  try {
+    for (const model of models) {
+      try {
+        console.log('Trying model:', model);
+        
+        const response = await callOpenRouter(model.trim(), prompt, apiKey, controller.signal);
+        
+        // Success case
+        if (response.status === 200) {
+          const data = await response.json();
+          return data;
+        }
+        
+        // Payment required → try next model
+        if (response.status === 402) {
+          console.log(`Model ${model} requires payment, trying next...`);
+          continue;
+        }
+        
+        // Rate limit → wait and retry
+        if (response.status === 429) {
+          console.log(`Rate limited on ${model}, waiting 2s...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          continue;
+        }
+        
+        // Other errors → try next model
+        console.log(`Model ${model} failed with status ${response.status}, trying next...`);
+        continue;
+        
+      } catch (modelError) {
+        console.error(`Error with model ${model}:`, modelError);
+        continue;
+      }
+    }
+    
+    // All models failed
+    throw new Error('All models failed');
+    
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Helper: Normalize tag to allowed list
+ * Tags are restricted to specific stores
+ */
+const ALLOWED_TAGS = ["Woolies", "Coles", "ALDI", "IGA", "Asian Grocery", "Chemist", "Kmart"];
+
+function getAllowedTag(tag) {
+  if (!tag) return "Woolies";
+  const found = ALLOWED_TAGS.find(t => tag.toLowerCase().includes(t.toLowerCase()));
+  return found || "Woolies";
+}
+
+/**
+ * Helper: Safely parse and validate list data from AI response
+ * free-tier model switch
+ */
+function safeParseList(text) {
+  // Strip code fences if present
+  const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  
+  // Extract first JSON object
+  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error('No JSON found in response');
+  }
+  
+  const data = JSON.parse(jsonMatch[0]);
+  
+  // Validate structure
+  if (!data.items || !Array.isArray(data.items)) {
+    throw new Error('Invalid format: items array not found');
+  }
+  
+  // Normalize items with allowed tags only
+  return data.items
+    .filter(item => item.label && typeof item.label === 'string')
+    .map((item, index) => ({
+      id: crypto.randomUUID(),
+      label: item.label.trim().slice(0, 64),
+      tags: [getAllowedTag(Array.isArray(item.tags) ? item.tags[0] : null)],
+      checked: true, // Initial state is checked for preview
+      pos: index,
+      updated_at: Date.now(),
+    }));
+}
+
+/**
  * POST /api/generate
  * Generate shopping list using AI (OpenRouter)
+ * free-tier model switch: Updated to use free models with fallback
  */
 async function handleGenerate(request, env) {
   let body;
@@ -345,9 +503,8 @@ async function handleGenerate(request, env) {
   const stored = await env.SHOPLIST.get(kvKey, 'text');
   const existingDoc = stored ? JSON.parse(stored) : createDefaultDocument();
 
-  // Call OpenRouter API
+  // Call OpenRouter API with fallback
   try {
-    const model = env.MODEL || 'meta-llama/llama-3-70b-instruct';
     const apiKey = env.OPENROUTER_API_KEY;
 
     if (!apiKey) {
@@ -355,43 +512,8 @@ async function handleGenerate(request, env) {
       return jsonResponse({ error: 'AI service not configured' }, 500);
     }
 
-    // Create AbortController for timeout
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
-
-    const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: model,
-        temperature: 0.2,
-        top_p: 0.9,
-        max_tokens: 600,
-        messages: [
-          {
-            role: 'system',
-            content: 'You generate STRICT JSON shopping lists in Japanese. Output ONLY minified JSON with this schema and nothing else.',
-          },
-          {
-            role: 'user',
-            content: `${prompt}。以下のJSONスキーマに完全準拠し、余計な文章は一切返さないこと。必ずminifiedなJSONのみ出力: {"items":[{"label":"string","tags":"string[]","checked":false}]}.`,
-          },
-        ],
-      }),
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!openRouterResponse.ok) {
-      console.error('OpenRouter API error:', openRouterResponse.status, await openRouterResponse.text());
-      return jsonResponse({ error: 'AI service error' }, 502);
-    }
-
-    const openRouterData = await openRouterResponse.json();
+    // free-tier model switch: Generate with fallbacks
+    const openRouterData = await generateWithFallbacks(prompt, env);
     
     // Extract content from response
     if (!openRouterData.choices || !openRouterData.choices[0] || !openRouterData.choices[0].message) {
@@ -399,59 +521,19 @@ async function handleGenerate(request, env) {
       return jsonResponse({ error: 'Invalid AI response' }, 502);
     }
 
-    let content = openRouterData.choices[0].message.content;
+    const content = openRouterData.choices[0].message.content;
 
-    // Strip code fences if present
-    content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    // free-tier model switch: Use safeParseList for validation
+    const normalizedItems = safeParseList(content);
 
-    // Extract first JSON object
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      console.error('No JSON found in response:', content);
-      return jsonResponse({ error: 'AI did not return valid JSON' }, 502);
-    }
+    // AI Suggestions Modal: Return suggestions without saving to KV
+    // User will confirm before saving
+    return jsonResponse({
+      status: 'ok',
+      suggestions: normalizedItems,
+    });
 
-    const generatedData = JSON.parse(jsonMatch[0]);
-
-    // Validate structure
-    if (!generatedData.items || !Array.isArray(generatedData.items)) {
-      console.error('Invalid items structure:', generatedData);
-      return jsonResponse({ error: 'Invalid AI response structure' }, 502);
-    }
-
-    // Normalize items
-    const normalizedItems = [];
-    for (let i = 0; i < generatedData.items.length; i++) {
-      const item = generatedData.items[i];
-      
-      if (!item.label || typeof item.label !== 'string') {
-        continue; // Skip invalid items
-      }
-
-      const label = item.label.trim().slice(0, 64);
-      if (label.length === 0) {
-        continue;
-      }
-
-      // Extract only first tag if tags array exists
-      let tags = [];
-      if (Array.isArray(item.tags) && item.tags.length > 0) {
-        const firstTag = item.tags.find(tag => typeof tag === 'string' && tag.length > 0);
-        if (firstTag) {
-          tags = [firstTag];
-        }
-      }
-
-      normalizedItems.push({
-        id: crypto.randomUUID(),
-        label: label,
-        tags: tags,
-        checked: false,
-        pos: i,
-        updated_at: Date.now(),
-      });
-    }
-
+    /* Original implementation: Save immediately to KV
     // Build new document
     const newDoc = {
       title: existingDoc.title || 'Shopping',
@@ -467,13 +549,14 @@ async function handleGenerate(request, env) {
       status: 'success',
       items: normalizedItems,
     });
+    */
 
   } catch (error) {
     if (error.name === 'AbortError') {
       console.error('OpenRouter API timeout');
-      return jsonResponse({ error: 'AI service timeout' }, 504);
+      return jsonResponse({ error: 'AI生成がタイムアウトしました' }, 504);
     }
     console.error('Error in handleGenerate:', error);
-    return jsonResponse({ error: 'Internal server error' }, 500);
+    return jsonResponse({ error: 'AI生成に失敗しました' }, 500);
   }
 }
