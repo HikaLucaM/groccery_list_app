@@ -330,7 +330,7 @@ function normalizeItem(item, fallbackPos = 0) {
 
 /**
  * Helper: Call OpenRouter API with a specific model
- * free-tier model switch
+ * Strict JSON enforcement: Updated prompt to guarantee JSON-only output
  */
 async function callOpenRouter(model, prompt, apiKey, signal) {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
@@ -343,18 +343,24 @@ async function callOpenRouter(model, prompt, apiKey, signal) {
     },
     body: JSON.stringify({
       model,
-      temperature: 0.1,
+      temperature: 0.2,
       top_p: 0.9,
       max_tokens: 800,
       response_format: { type: "json_object" },
       messages: [
         {
           role: 'system',
-          content: 'You are a helpful shopping list generator. You MUST respond with ONLY valid JSON in this exact format: {"items":[{"label":"商品名","tags":["ストア名"]}]}. No explanations, no markdown, just pure JSON.',
+          content: `You are a JSON generator that outputs only valid JSON. 
+Do not include explanations, markdown, or text outside JSON.
+If you cannot comply, output {"error":"invalid request"}.
+Always follow the user's schema exactly.`
         },
         {
           role: 'user',
-          content: `Create a shopping list for: ${prompt}. Return JSON with items array. Each item has "label" (string) and "tags" (array of strings). Use Japanese for labels. Use these store tags: Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart.`,
+          content: `${prompt}。次のスキーマに完全準拠し、minified JSONのみを出力すること:
+{"items":[{"label":"string","tags":["string"],"checked":false}]}
+
+Use Japanese for labels. Use these store tags: Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart.`
         },
       ],
     }),
@@ -425,6 +431,36 @@ async function generateWithFallbacks(prompt, env) {
 }
 
 /**
+ * Helper: Safely parse and validate JSON from LLM output
+ * Handles markdown code fences, text pollution, and validates schema
+ */
+function safeJsonParseLLMOutput(text) {
+  try {
+    // Remove code fences and markdown remnants
+    const cleaned = text.replace(/```json|```/g, "").trim();
+    
+    // Extract first JSON object
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("No JSON object found");
+
+    // Parse JSON
+    const json = JSON.parse(match[0]);
+
+    // Basic schema validation
+    if (!Array.isArray(json.items)) throw new Error("Missing 'items' array");
+    
+    for (const item of json.items) {
+      if (typeof item.label !== "string") throw new Error("Invalid label");
+    }
+
+    return json;
+  } catch (err) {
+    console.error("LLM JSON parse failed:", err);
+    return { error: "Invalid JSON", raw: text };
+  }
+}
+
+/**
  * Helper: Normalize tag to allowed list
  * Tags are restricted to specific stores
  */
@@ -438,27 +474,19 @@ function getAllowedTag(tag) {
 
 /**
  * Helper: Safely parse and validate list data from AI response
- * free-tier model switch
+ * Uses safeJsonParseLLMOutput for robust parsing
  */
 function safeParseList(text) {
-  // Strip code fences if present
-  const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+  // Parse with safe JSON extraction
+  const parsed = safeJsonParseLLMOutput(text);
   
-  // Extract first JSON object
-  const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) {
-    throw new Error('No JSON found in response');
-  }
-  
-  const data = JSON.parse(jsonMatch[0]);
-  
-  // Validate structure
-  if (!data.items || !Array.isArray(data.items)) {
-    throw new Error('Invalid format: items array not found');
+  // Handle parsing errors
+  if (parsed.error) {
+    throw new Error(parsed.error);
   }
   
   // Normalize items with allowed tags only
-  return data.items
+  return parsed.items
     .filter(item => item.label && typeof item.label === 'string')
     .map((item, index) => ({
       id: crypto.randomUUID(),

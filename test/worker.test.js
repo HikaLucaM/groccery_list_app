@@ -882,7 +882,7 @@ describe('Cloudflare Worker API', () => {
       expect(data.error).toContain('AI service not configured');
     });
 
-    it('should successfully generate list with mocked OpenRouter response', async () => {
+  it('should successfully generate suggestions with mocked OpenRouter response', async () => {
       const token = 'generate-test-token-123';
       
       // Mock global fetch for OpenRouter API
@@ -891,6 +891,7 @@ describe('Cloudflare Worker API', () => {
         if (url.includes('openrouter.ai')) {
           return Promise.resolve({
             ok: true,
+            status: 200,
             json: async () => ({
               choices: [
                 {
@@ -921,22 +922,14 @@ describe('Cloudflare Worker API', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
       
-      expect(data.status).toBe('success');
-      expect(data.items).toHaveLength(3);
-      expect(data.items[0].label).toBe('牛乳');
-      expect(data.items[0].tags).toEqual(['Woolies']);
-      expect(data.items[0].checked).toBe(false);
-      expect(data.items[0].id).toBeDefined();
-      expect(data.items[0].pos).toBe(0);
-      expect(data.items[0].updated_at).toBeDefined();
-
-      // Verify saved to KV
-      const getReq = createRequest('GET', `/api/list/${token}`);
-      const getRes = await worker.fetch(getReq, env);
-      const savedData = await getRes.json();
-      
-      expect(savedData.items).toHaveLength(3);
-      expect(savedData.version).toBe(1);
+      expect(data.status).toBe('ok');
+      expect(data.suggestions).toHaveLength(3);
+      expect(data.suggestions[0].label).toBe('牛乳');
+      expect(data.suggestions[0].tags).toEqual(['Woolies']);
+      expect(data.suggestions[0].checked).toBe(true);
+      expect(data.suggestions[0].id).toBeDefined();
+      expect(data.suggestions[0].pos).toBe(0);
+      expect(data.suggestions[0].updated_at).toBeDefined();
 
       // Restore original fetch
       global.fetch = originalFetch;
@@ -950,6 +943,7 @@ describe('Cloudflare Worker API', () => {
         if (url.includes('openrouter.ai')) {
           return Promise.resolve({
             ok: true,
+            status: 200,
             json: async () => ({
               choices: [
                 {
@@ -974,9 +968,9 @@ describe('Cloudflare Worker API', () => {
       expect(response.status).toBe(200);
       const data = await response.json();
       
-      expect(data.status).toBe('success');
-      expect(data.items).toHaveLength(1);
-      expect(data.items[0].label).toBe('トマト');
+      expect(data.status).toBe('ok');
+      expect(data.suggestions).toHaveLength(1);
+      expect(data.suggestions[0].label).toBe('トマト');
 
       global.fetch = originalFetch;
     });
@@ -989,6 +983,7 @@ describe('Cloudflare Worker API', () => {
         if (url.includes('openrouter.ai')) {
           return Promise.resolve({
             ok: true,
+            status: 200,
             json: async () => ({
               choices: [
                 {
@@ -1015,7 +1010,8 @@ describe('Cloudflare Worker API', () => {
       const response = await worker.fetch(request, env);
       const data = await response.json();
       
-      expect(data.items[0].tags).toEqual(['Woolies']); // Only first tag
+      expect(data.status).toBe('ok');
+      expect(data.suggestions[0].tags).toEqual(['Woolies']); // Only first tag
 
       global.fetch = originalFetch;
     });
@@ -1040,9 +1036,10 @@ describe('Cloudflare Worker API', () => {
 
       const response = await worker.fetch(request, env);
       
-      expect(response.status).toBe(502);
+      expect(response.status).toBe(500);
       const data = await response.json();
-      expect(data.error).toContain('AI service error');
+      expect(data.error).toContain('AI生成に失敗しました');
+      expect(data.details).toBeDefined();
 
       global.fetch = originalFetch;
     });
@@ -1053,6 +1050,7 @@ describe('Cloudflare Worker API', () => {
         if (url.includes('openrouter.ai')) {
           return Promise.resolve({
             ok: true,
+            status: 200,
             json: async () => ({
               choices: [
                 {
@@ -1074,9 +1072,10 @@ describe('Cloudflare Worker API', () => {
 
       const response = await worker.fetch(request, env);
       
-      expect(response.status).toBe(502);
+      expect(response.status).toBe(500);
       const data = await response.json();
       expect(data.error).toBeDefined();
+      expect(data.details).toBe('Invalid JSON');
 
       global.fetch = originalFetch;
     });
@@ -1089,6 +1088,7 @@ describe('Cloudflare Worker API', () => {
         if (url.includes('openrouter.ai')) {
           return Promise.resolve({
             ok: true,
+            status: 200,
             json: async () => ({
               choices: [
                 {
@@ -1119,12 +1119,13 @@ describe('Cloudflare Worker API', () => {
       const response = await worker.fetch(request, env);
       const data = await response.json();
       
-      expect(data.items[0].label.length).toBeLessThanOrEqual(64);
+      expect(data.status).toBe('ok');
+      expect(data.suggestions[0].label.length).toBeLessThanOrEqual(64);
 
       global.fetch = originalFetch;
     });
 
-    it('should increment version when generating list', async () => {
+    it('should not modify existing list until user confirmation', async () => {
       const token = 'version-test-token-123';
       
       // Create initial list
@@ -1141,6 +1142,7 @@ describe('Cloudflare Worker API', () => {
         if (url.includes('openrouter.ai')) {
           return Promise.resolve({
             ok: true,
+            status: 200,
             json: async () => ({
               choices: [
                 {
@@ -1163,12 +1165,13 @@ describe('Cloudflare Worker API', () => {
       });
       await worker.fetch(genReq, env);
 
-      // Check version incremented
+      // Check list remains unchanged (no automatic save)
       const getReq = createRequest('GET', `/api/list/${token}`);
       const getRes = await worker.fetch(getReq, env);
       const savedData = await getRes.json();
       
-      expect(savedData.version).toBe(2); // Should increment from 1 to 2
+      expect(savedData.version).toBe(1); // Remains unchanged until user adds items manually
+      expect(savedData.items).toHaveLength(0);
 
       global.fetch = originalFetch;
     });
@@ -1179,6 +1182,7 @@ describe('Cloudflare Worker API', () => {
         if (url.includes('openrouter.ai')) {
           return Promise.resolve({
             ok: true,
+            status: 200,
             json: async () => ({
               choices: [
                 {
