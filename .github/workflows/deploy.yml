@@ -45,10 +45,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Prepare static files for Workers Assets
-        run: |
-          mkdir -p public
-          cp index.html public/
+      # No need to prepare static files - public/index.html is already in the repo
+      # The old step was overwriting public/index.html with root index.html
 
       - name: Deploy Workers (with Assets)
         uses: cloudflare/wrangler-action@v3
