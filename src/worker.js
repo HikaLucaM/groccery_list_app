@@ -89,7 +89,8 @@ export default {
         return new Response(asset.body, {
           headers: {
             'Content-Type': 'text/html; charset=utf-8',
-            'Cache-Control': 'public, max-age=3600',
+            // Disable caching to ensure latest UI assets are served after deploys
+            'Cache-Control': 'no-store',
           },
         });
       } catch (error) {
