@@ -343,17 +343,18 @@ async function callOpenRouter(model, prompt, apiKey, signal) {
     },
     body: JSON.stringify({
       model,
-      temperature: 0.2,
+      temperature: 0.1,
       top_p: 0.9,
-      max_tokens: 600,
+      max_tokens: 800,
+      response_format: { type: "json_object" },
       messages: [
         {
           role: 'system',
-          content: 'You generate STRICT JSON shopping lists in Japanese. Output ONLY minified JSON with this schema and nothing else.',
+          content: 'You are a helpful shopping list generator. You MUST respond with ONLY valid JSON in this exact format: {"items":[{"label":"商品名","tags":["ストア名"]}]}. No explanations, no markdown, just pure JSON.',
         },
         {
           role: 'user',
-          content: `${prompt}。以下のJSONスキーマに完全準拠し、余計な文章は一切返さないこと。必ずminifiedなJSONのみ出力: {"items":[{"label":"string","tags":"string[]","checked":false}]}.`,
+          content: `Create a shopping list for: ${prompt}. Return JSON with items array. Each item has "label" (string) and "tags" (array of strings). Use Japanese for labels. Use these store tags: Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart.`,
         },
       ],
     }),
@@ -557,6 +558,9 @@ async function handleGenerate(request, env) {
       return jsonResponse({ error: 'AI生成がタイムアウトしました' }, 504);
     }
     console.error('Error in handleGenerate:', error);
-    return jsonResponse({ error: 'AI生成に失敗しました' }, 500);
+    return jsonResponse({ 
+      error: 'AI生成に失敗しました',
+      details: error.message 
+    }, 500);
   }
 }
