@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Shared Shopping List</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+      background: linear-gradient(to bottom, #f8f9fa 0%, #e9ecef 100%);
+      /* モバイル最適化: 下部固定入力バーのために余白確保 */
+      padding-bottom: 90px;
+      /* セーフエリアを考慮 */
+      padding-bottom: calc(90px + env(safe-area-inset-bottom));
+      overflow-x: hidden; /* 横スクロール防止 */
+    }
+    
+    .container {
+      max-width: 720px;
+      margin: 0 auto;
+      background: transparent;
+      min-height: 100vh;
+      width: 100%; /* 画面幅に合わせる */
+    }
+    
+    /* ヘッダーエリア */
+    .header {
+      padding: 16px 12px;
+      border-bottom: none;
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 10;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      border-radius: 0 0 20px 20px;
+      margin: 0 4px 12px 4px;
+      width: calc(100% - 8px); /* マージンを考慮した幅 */
+    }
+    
+    h1 {
+      font-size: 22px;
+      margin-bottom: 12px;
+      color: #1a1a1a;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    /* 共有ボタン */
+    .share-btn {
+      padding: 8px 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+      min-height: 36px;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+      flex-shrink: 0; /* ボタンが縮まないように */
+    }
+    
+    .share-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+    
+    .share-btn:active {
+      transform: scale(0.95);
+    }
+    
+    /* 共有モーダル */
+    .share-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.6);
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    .share-modal-content {
+      background: white;
+      padding: 28px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      width: 90%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    @keyframes slideUp {
+      from {
+        transform: translateY(20px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+    
+    .share-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .share-modal-header h3 {
+      margin: 0;
+      font-size: 22px;
+      color: #1a1a1a;
+      font-weight: 800;
+    }
+    
+    .share-modal-close {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #9ca3af;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      line-height: 32px;
+      text-align: center;
+      transition: all 0.2s ease;
+      border-radius: 8px;
+    }
+    
+    .share-modal-close:hover {
+      color: #1a1a1a;
+      background: rgba(0,0,0,0.05);
+    }
+    
+    .share-url-container {
+      display: flex;
+      gap: 10px;
+      align-items: stretch;
+    }
+    
+    .share-url-container input {
+      flex: 1;
+      padding: 14px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 16px; /* iOS自動ズーム防止: 16px以上必須 */
+      font-family: monospace;
+      background: #f9fafb;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+    
+    .share-url-container input:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .copy-btn {
+      padding: 14px 20px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 800;
+      white-space: nowrap;
+      transition: all 0.3s ease;
+      min-width: 80px;
+      min-height: 48px;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    
+    .copy-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    }
+    
+    .copy-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .copy-btn.copied {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* フィルターエリア（1行レイアウト） */
+    .filter-section {
+      display: flex;
+      flex-wrap: wrap; /* 小さい画面で折り返し可能に */
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      overflow-x: visible; /* auto から変更 */
+    }
+    
+    .filter-section label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #374151;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    
+    .filter-section select {
+      padding: 10px 8px;
+      border: 2px solid #e5e7eb;
+      border-radius: 10px;
+      font-size: 16px; /* iOS自動ズーム防止: 16px以上必須 */
+      font-weight: 600;
+      background: #f9fafb;
+      min-width: 100px; /* 120pxから縮小 */
+      max-width: calc(50vw - 60px); /* 画面幅の半分以下に制限 */
+      flex: 1 1 auto; /* フレキシブルに */
+      /* モバイル最適化 */
+      min-height: 44px;
+      transition: all 0.2s ease;
+    }
+    
+    .filter-section select:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    /* アイテムリスト */
+    .item-list {
+      list-style: none;
+      padding: 0 4px; /* 8pxから縮小 */
+    }
+    
+    .item {
+      display: flex;
+      align-items: center;
+      padding: 14px 10px; /* 左右パディングを縮小 */
+      margin-bottom: 8px;
+      gap: 10px;
+      /* カード型デザイン */
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      /* モバイル最適化: タップしやすい高さ */
+      min-height: 72px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      position: relative;
+      border: 2px solid transparent;
+      width: 100%; /* 幅を明示的に指定 */
+      max-width: 100%; /* 最大幅を制限 */
+    }
+    
+    .item:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    }
+    
+    .item:active {
+      transform: scale(0.98);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    
+    .item:last-child {
+      margin-bottom: 0;
+    }
+    
+    /* モバイル最適化: ラベルを左側に配置 */
+    .item-label {
+      flex: 1;
+      font-size: 16px;
+      font-weight: 600;
+      user-select: none;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
+      padding-right: 0;
+      line-height: 1.5;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: #1a1a1a;
+      min-width: 0; /* フレックスアイテムが縮小可能に */
+      overflow: hidden; /* はみ出しを防ぐ */
+    }
+    
+    .item-label-text {
+      display: block;
+      letter-spacing: -0.2px;
+      word-break: break-word; /* 長い単語を折り返し */
+    }
+    
+    .item-label.checked .item-label-text {
+      text-decoration: line-through;
+      color: #9ca3af;
+      opacity: 0.6;
+    }
+    
+    /* タグバッジ */
+    .item-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 2px;
+      max-width: 100%; /* 親要素の幅を超えないように */
+    }
+    
+    .tag-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+      white-space: nowrap;
+      letter-spacing: 0.3px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+      transition: transform 0.2s ease;
+      max-width: 100%; /* タグが親要素を超えないように */
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    .tag-badge:active {
+      transform: scale(0.95);
+    }
+    
+    /* タグの色定義 - より高いコントラスト & 統一感 */
+    .tag-woolies { 
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    .tag-coles { 
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+    .tag-aldi { 
+      background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    }
+    .tag-iga { 
+      background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    }
+    .tag-asian-grocery { 
+      background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    }
+    .tag-chemist { 
+      background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+    }
+    .tag-kmart { 
+      background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+    }
+    .tag-custom { 
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    }
+    
+    /* モバイル最適化: チェックボックスを右側（親指で押しやすい）、大きく */
+    .item-checkbox-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* 大きなタップ領域 */
+      min-width: 48px;
+      min-height: 48px;
+      margin: -16px -8px -16px 0;
+      flex-shrink: 0;
+      border-radius: 12px;
+      transition: background 0.2s ease;
+    }
+    
+    .item-checkbox-wrapper:active {
+      background: rgba(0,0,0,0.05);
+    }
+    
+    .item input[type="checkbox"] {
+      width: 26px;
+      height: 26px;
+      cursor: pointer;
+      accent-color: #10b981;
+      transition: transform 0.2s ease;
+    }
+    
+    .item input[type="checkbox"]:checked {
+      animation: checkBounce 0.3s ease;
+    }
+    
+    @keyframes checkBounce {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+    }
+    
+    /* 下部固定の入力バー（モバイル最適化） */
+    .add-section {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: white;
+      border-top: none;
+      padding: 12px 8px;
+      /* セーフエリアを考慮（iPhone等） */
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+      display: flex;
+      gap: 6px;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+      z-index: 100;
+      max-width: 720px;
+      margin: 0 auto;
+      box-sizing: border-box;
+      border-radius: 24px 24px 0 0;
+      width: 100%; /* 幅を明示的に指定 */
+    }
+    
+    .add-section input[type="text"] {
+      flex: 1;
+      padding: 14px 12px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 16px;
+      /* iOS対策: ズーム防止 */
+      min-height: 50px;
+      min-width: 0; /* フレックスアイテムの縮小を許可 */
+      font-weight: 500;
+      transition: all 0.2s ease;
+      background: #f9fafb;
+    }
+    
+    .add-section input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .add-section select {
+      width: 90px; /* 110pxから縮小 */
+      padding: 14px 8px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 16px; /* iOS自動ズーム防止: 16px以上必須 */
+      font-weight: 600;
+      background: #f9fafb;
+      min-height: 50px;
+      flex-shrink: 0;
+      transition: all 0.2s ease;
+      max-width: 25vw; /* ビューポート幅の25%まで */
+    }
+    
+    .add-section select:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .add-section button {
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 800;
+      white-space: nowrap;
+      /* モバイル最適化 */
+      min-height: 50px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      transition: all 0.3s ease;
+      min-width: 60px; /* 最小幅を確保 */
+    }
+    
+    .add-section button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+    }
+    
+    .add-section button:active {
+      transform: scale(0.96);
+    }
+    
+    /* AI生成ボタン */
+    .ai-generate-btn {
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 800;
+      white-space: nowrap;
+      min-height: 50px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+      transition: all 0.3s ease;
+      min-width: 60px;
+    }
+    
+    .ai-generate-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
+    }
+    
+    .ai-generate-btn:active {
+      transform: scale(0.96);
+    }
+    
+    .ai-generate-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    /* モーダル */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease;
+    }
+    
+    .modal.show {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 20px;
+      padding: 28px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .modal-content h2 {
+      font-size: 22px;
+      margin-bottom: 24px;
+      color: #1a1a1a;
+      font-weight: 800;
+      letter-spacing: -0.3px;
+    }
+    
+    .modal-content label {
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      color: #374151;
+      margin-bottom: 10px;
+    }
+    
+    .modal-content input {
+      width: 100%;
+      padding: 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 20px;
+      background: #f9fafb;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-content input:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .modal-content select {
+      width: 100%;
+      padding: 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      background: #f9fafb;
+      margin-bottom: 20px;
+      transition: all 0.2s ease;
+    }
+    
+    .modal-content select:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    
+    .modal-actions button {
+      padding: 14px 26px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 800;
+      min-height: 50px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .modal-actions button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.2);
+    }
+    
+    .modal-actions button:active {
+      transform: scale(0.96);
+    }
+    
+    .modal-btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .modal-btn-secondary {
+      background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+      color: white;
+    }
+    
+    /* AI提案モーダル専用スタイル */
+    .ai-suggestions-content {
+      max-width: 500px;
+    }
+    
+    .ai-suggestions-description {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 16px;
+      font-weight: 500;
+    }
+    
+    .ai-suggestions-list {
+      max-height: 400px;
+      overflow-y: auto;
+      margin: 16px 0;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      background: #f9fafb;
+    }
+    
+    .ai-suggestions-list label {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+      background: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+    }
+    
+    .ai-suggestions-list label:hover {
+      border-color: #667eea;
+      transform: translateX(4px);
+    }
+    
+    .ai-suggestions-list input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      margin: 0;
+    }
+    
+    .ai-suggestions-list .suggestion-label {
+      flex: 1;
+      font-weight: 600;
+      color: #1a1a1a;
+      font-size: 15px;
+    }
+    
+    .ai-suggestions-list .suggestion-tag {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    /* 状態表示 */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #9ca3af;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .loading {
+      text-align: center;
+      padding: 40px 20px;
+      color: #6b7280;
+      font-size: 15px;
+      font-weight: 600;
+    }
+    
+    /* トースト通知 */
+    .toast {
+      position: fixed;
+      bottom: 110px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+      color: white;
+      padding: 16px 28px;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 700;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: none;
+      z-index: 1000;
+      max-width: 90%;
+      text-align: center;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-8px);
+    }
+    
+    /* 自動更新インジケーター */
+    .sync-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      margin-left: 10px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+    }
+    
+    .sync-indicator.syncing {
+      opacity: 1;
+      animation: pulse 1.5s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { 
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% { 
+        opacity: 0.5;
+        transform: scale(1.2);
+      }
+    }
+    
+    /* 小さい画面向けの調整 (320px - 400px) */
+    @media (max-width: 400px) {
+      h1 {
+        font-size: 20px;
+        gap: 8px;
+      }
+      
+      .share-btn {
+        font-size: 12px;
+        padding: 6px 12px;
+        min-height: 32px;
+      }
+      
+      .filter-section {
+        gap: 6px;
+      }
+      
+      .filter-section label {
+        font-size: 12px;
+      }
+      
+      .filter-section select {
+        font-size: 16px; /* iOS自動ズーム防止: 16px以上必須 */
+        padding: 8px 6px;
+        min-width: 90px;
+        min-height: 40px;
+      }
+      
+      .item {
+        padding: 12px 8px;
+        gap: 8px;
+        min-height: 64px;
+      }
+      
+      .item-label {
+        font-size: 15px;
+        gap: 4px;
+      }
+      
+      .tag-badge {
+        font-size: 10px;
+        padding: 3px 8px;
+      }
+      
+      .add-section {
+        padding: 10px 6px;
+        gap: 4px;
+      }
+      
+      .add-section input[type="text"] {
+        padding: 12px 10px;
+        min-height: 46px;
+        font-size: 16px; /* iOS自動ズーム防止: 16px以上必須 */
+      }
+      
+      .add-section select {
+        width: 80px;
+        padding: 12px 6px;
+        font-size: 16px; /* iOS自動ズーム防止: 16px以上必須 */
+        min-height: 46px;
+      }
+      
+      .add-section button {
+        padding: 12px 12px;
+        font-size: 14px;
+        min-height: 46px;
+        min-width: 50px;
+      }
+      
+      .modal-content {
+        padding: 20px;
+      }
+      
+      .modal-content h2 {
+        font-size: 20px;
+      }
+    }
+    
+    /* 中サイズ画面向けの調整 (401px - 720px) */
+    @media (min-width: 401px) and (max-width: 720px) {
+      .add-section select {
+        width: 100px;
+      }
+      
+      .filter-section select {
+        max-width: 45vw;
+      }
+    }
+    
+    /* レスポンシブ対応 */
+    @media (min-width: 721px) {
+      body {
+        padding: 20px;
+        padding-bottom: 100px;
+        background: linear-gradient(to bottom, #f3f4f6 0%, #e5e7eb 100%);
+      }
+      
+      .container {
+        border-radius: 24px;
+        min-height: auto;
+      }
+      
+      .header {
+        border-radius: 24px 24px 0 0;
+        padding: 24px;
+        margin: 0 0 16px 0;
+        width: 100%;
+      }
+      
+      h1 {
+        font-size: 26px;
+      }
+      
+      .share-btn {
+        font-size: 14px;
+        padding: 10px 18px;
+        min-height: 40px;
+      }
+      
+      .filter-section select {
+        min-width: 140px;
+        max-width: none;
+        font-size: 16px; /* iOS自動ズーム防止: 16px以上必須 */
+        padding: 10px 12px;
+      }
+      
+      .item-list {
+        padding: 0 12px;
+      }
+      
+      .item {
+        padding: 16px 14px;
+        gap: 12px;
+      }
+      
+      .item-label {
+        font-size: 17px;
+        gap: 8px;
+      }
+      
+      .tag-badge {
+        font-size: 12px;
+        padding: 5px 12px;
+      }
+      
+      .add-section {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        width: 720px;
+        border-radius: 24px;
+        padding: 14px 16px;
+        gap: 10px;
+      }
+      
+      .add-section input[type="text"] {
+        padding: 16px 20px;
+        min-height: 54px;
+      }
+      
+      .add-section select {
+        width: 110px;
+        padding: 16px 12px;
+        font-size: 16px; /* iOS自動ズーム防止: 16px以上必須 */
+        min-height: 54px;
+        max-width: none;
+      }
+      
+      .add-section button {
+        padding: 16px 24px;
+        font-size: 17px;
+        min-height: 54px;
+      }
+    }
+    
+    /* ダークモード対応のヒント（将来的に実装可能） */
+    @media (prefers-color-scheme: dark) {
+      /* ダークモード時のスタイルをここに追加可能 */
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- ヘッダー -->
+    <div class="header">
+      <h1>
+        <span id="title">Shopping List</span>
+        <span class="sync-indicator" id="syncIndicator"></span>
+        <button class="share-btn" onclick="showShareModal()">Share</button>
+      </h1>
+
+      <!-- 共有モーダル -->
+      <div id="shareModal" class="share-modal" onclick="if(event.target===this) hideShareModal()">
+        <div class="share-modal-content">
+          <div class="share-modal-header">
+            <h3>Share This List</h3>
+            <button class="share-modal-close" onclick="hideShareModal()">×</button>
+          </div>
+          <div class="share-url-container">
+            <input type="text" id="shareUrlInput" readonly>
+            <button class="copy-btn" id="copyBtn" onclick="copyShareUrl()">Copy</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- フィルター -->
+      <div class="filter-section">
+        <label for="filterSelect">Show:</label>
+        <select id="filterSelect" aria-label="表示フィルタ">
+          <option value="unchecked">未チェックのみ</option>
+          <option value="all">すべて</option>
+        </select>
+        <label for="tagFilterSelect">Tag:</label>
+        <select id="tagFilterSelect" aria-label="タグフィルタ">
+          <option value="all">すべてのタグ</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- アイテムリスト -->
+    <ul class="item-list" id="itemList">
+      <li class="loading">読み込み中...</li>
+    </ul>
+  </div>
+
+  <!-- 下部固定の入力バー -->
+  <div class="add-section">
+    <input type="text" id="newItemInput" placeholder="買うものを入力..." aria-label="新しいアイテム">
+    <select id="tagSelect" aria-label="タグを選択">
+      <option value="">タグなし</option>
+    </select>
+    <button id="addBtn" aria-label="追加">追加</button>
+    <button id="aiGenerateBtn" class="ai-generate-btn" aria-label="AIでリストを作成">🤖 AI</button>
+  </div>
+
+  <!-- トースト通知 -->
+  <div class="toast" id="toast"></div>
+
+  <!-- アイテム編集モーダル -->
+  <div class="modal" id="editItemModal">
+    <div class="modal-content">
+      <h2>アイテムを編集</h2>
+      <label for="editItemLabel">アイテム名</label>
+      <input type="text" id="editItemLabel" placeholder="アイテム名">
+      <label for="editItemTag">タグ</label>
+      <select id="editItemTag">
+        <option value="">タグなし</option>
+      </select>
+      <div class="modal-actions">
+        <button class="modal-btn-secondary" id="cancelEditBtn">キャンセル</button>
+        <button class="modal-btn-primary" id="saveEditBtn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- カスタムタグ追加モーダル -->
+  <div class="modal" id="customTagModal">
+    <div class="modal-content">
+      <h2>カスタムタグを追加</h2>
+      <input type="text" id="customTagInput" placeholder="新しいタグ名を入力..." maxlength="20">
+      <div class="modal-actions">
+        <button class="modal-btn-secondary" id="cancelTagBtn">キャンセル</button>
+        <button class="modal-btn-primary" id="saveTagBtn">追加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI提案モーダル -->
+  <div class="modal" id="aiSuggestionsModal">
+    <div class="modal-content ai-suggestions-content">
+      <h2>🤖 AIの買い物リスト提案</h2>
+      <p class="ai-suggestions-description">追加したい項目を選択してください</p>
+      <div class="ai-suggestions-list" id="suggestionList"></div>
+      <div class="modal-actions">
+        <button class="modal-btn-secondary" id="cancelSuggestions">キャンセル</button>
+        <button class="modal-btn-primary" id="addSelected">選択した項目を追加</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // Configuration
+    // ============================================================
+    const API_BASE = 'https://shared-shopping-list.grocery-shopping-list.workers.dev';
+    const POLL_INTERVAL_MS = 7000; // 7秒間隔で自動更新
+
+    // Preset tags
+    const PRESET_TAGS = [
+      'Woolies',
+      'Coles',
+      'ALDI',
+      'IGA',
+      'Asian Grocery',
+      'Chemist',
+      'Kmart'
+    ];
+
+    // Tag color mapping
+    const TAG_COLORS = {
+      'Woolies': 'tag-woolies',
+      'Coles': 'tag-coles',
+      'ALDI': 'tag-aldi',
+      'IGA': 'tag-iga',
+      'Asian Grocery': 'tag-asian-grocery',
+      'Chemist': 'tag-chemist',
+      'Kmart': 'tag-kmart'
+    };
+
+    // ============================================================
+    // State
+    // ============================================================
+    let listData = { title: 'Shopping', items: [] };
+    let currentFilter = 'unchecked';
+    let currentTagFilter = 'all';
+    let token = '';
+    let pollTimer = null;
+    let lastSavedState = '';
+    let isSaving = false; // PUT中はポーリング結果を無視
+    let customTags = []; // localStorage から読み込むカスタムタグ
+    let editingItemId = null; // 編集中のアイテムID
+
+    // ============================================================
+    // Initialization
+    // ============================================================
+    (function init() {
+      const params = new URLSearchParams(window.location.search);
+      token = params.get('t');
+
+      if (!token) {
+        // Generate new token and redirect
+        token = generateToken();
+        const newUrl = `${window.location.pathname}?t=${token}`;
+        window.location.href = newUrl;
+        return;
+      }
+
+      // Load custom tags from localStorage
+      loadCustomTags();
+
+      // Initialize tag selects
+      updateTagSelects();
+
+      // Display share URL
+      document.getElementById('shareUrlInput').value = window.location.href;
+
+      // Load initial data
+      loadList();
+
+      // Start auto-polling
+      startPolling();
+
+      // Event listeners
+      document.getElementById('addBtn').addEventListener('click', handleAdd);
+      document.getElementById('aiGenerateBtn').addEventListener('click', handleAIGenerate);
+      document.getElementById('newItemInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleAdd();
+        }
+      });
+      document.getElementById('filterSelect').addEventListener('change', (e) => {
+        currentFilter = e.target.value;
+        render();
+      });
+      document.getElementById('tagFilterSelect').addEventListener('change', (e) => {
+        currentTagFilter = e.target.value;
+        render();
+      });
+      document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
+      document.getElementById('tagSelect').addEventListener('change', (e) => {
+        if (e.target.value === '__custom__') {
+          showCustomTagModal();
+          e.target.value = ''; // Reset to default
+        }
+      });
+      document.getElementById('editItemTag').addEventListener('change', (e) => {
+        if (e.target.value === '__custom__') {
+          showCustomTagModalForEdit();
+          e.target.value = ''; // Reset to default
+        }
+      });
+      document.getElementById('cancelTagBtn').addEventListener('click', hideCustomTagModal);
+      document.getElementById('saveTagBtn').addEventListener('click', saveCustomTag);
+      document.getElementById('customTagInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveCustomTag();
+        }
+      });
+      
+      // Edit modal listeners
+      document.getElementById('cancelEditBtn').addEventListener('click', hideEditModal);
+      document.getElementById('saveEditBtn').addEventListener('click', saveEditItem);
+      document.getElementById('editItemLabel').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          saveEditItem();
+        }
+      });
+    })();
+
+    // ============================================================
+    // Tag Management
+    // ============================================================
+    function loadCustomTags() {
+      try {
+        const stored = localStorage.getItem('customTags');
+        customTags = stored ? JSON.parse(stored) : [];
+      } catch (e) {
+        console.error('Failed to load custom tags:', e);
+        customTags = [];
+      }
+    }
+
+    function saveCustomTagsToStorage() {
+      try {
+        localStorage.setItem('customTags', JSON.stringify(customTags));
+      } catch (e) {
+        console.error('Failed to save custom tags:', e);
+      }
+    }
+
+    function getAllTags() {
+      return [...PRESET_TAGS, ...customTags];
+    }
+
+    function updateTagSelects() {
+      const allTags = getAllTags();
+      
+      // Update tag select in add section
+      const tagSelect = document.getElementById('tagSelect');
+      tagSelect.innerHTML = '<option value="">タグなし</option>';
+      allTags.forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = tag;
+        tagSelect.appendChild(option);
+      });
+      // Add custom tag option
+      const customOption = document.createElement('option');
+      customOption.value = '__custom__';
+      customOption.textContent = 'カスタム項目を追加...';
+      tagSelect.appendChild(customOption);
+
+      // Update tag select in edit modal
+      const editTagSelect = document.getElementById('editItemTag');
+      editTagSelect.innerHTML = '<option value="">タグなし</option>';
+      allTags.forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = tag;
+        editTagSelect.appendChild(option);
+      });
+      // Add custom tag option
+      const editCustomOption = document.createElement('option');
+      editCustomOption.value = '__custom__';
+      editCustomOption.textContent = 'カスタム項目を追加...';
+      editTagSelect.appendChild(editCustomOption);
+
+      // Update tag filter select
+      updateTagFilter();
+    }
+
+    function updateTagFilter() {
+      const tagFilterSelect = document.getElementById('tagFilterSelect');
+      const currentValue = tagFilterSelect.value;
+      
+      // Get unique tags from current items
+      const usedTags = new Set();
+      listData.items.forEach(item => {
+        if (item.tags && Array.isArray(item.tags)) {
+          item.tags.forEach(tag => usedTags.add(tag));
+        }
+      });
+
+      tagFilterSelect.innerHTML = '<option value="all">すべてのタグ</option>';
+      
+      // Add used tags to filter
+      Array.from(usedTags).sort().forEach(tag => {
+        const option = document.createElement('option');
+        option.value = tag;
+        option.textContent = tag;
+        tagFilterSelect.appendChild(option);
+      });
+
+      // Restore previous selection if still available
+      if (currentValue && (currentValue === 'all' || usedTags.has(currentValue))) {
+        tagFilterSelect.value = currentValue;
+      } else {
+        currentTagFilter = 'all';
+        tagFilterSelect.value = 'all';
+      }
+    }
+
+    let isEditModalContext = false;
+
+    function showCustomTagModal() {
+      isEditModalContext = false;
+      document.getElementById('customTagModal').classList.add('show');
+      document.getElementById('customTagInput').value = '';
+      document.getElementById('customTagInput').focus();
+    }
+
+    function showCustomTagModalForEdit() {
+      isEditModalContext = true;
+      document.getElementById('customTagModal').classList.add('show');
+      document.getElementById('customTagInput').value = '';
+      document.getElementById('customTagInput').focus();
+    }
+
+    function hideCustomTagModal() {
+      document.getElementById('customTagModal').classList.remove('show');
+    }
+
+    function saveCustomTag() {
+      const input = document.getElementById('customTagInput');
+      const tagName = input.value.trim();
+
+      if (!tagName) {
+        showToast('タグ名を入力してください', true);
+        return;
+      }
+
+      const allTags = getAllTags();
+      if (allTags.includes(tagName)) {
+        showToast('このタグは既に存在します', true);
+        return;
+      }
+
+      customTags.push(tagName);
+      saveCustomTagsToStorage();
+      updateTagSelects();
+      hideCustomTagModal();
+      
+      // Select the newly added tag in the appropriate context
+      if (isEditModalContext) {
+        document.getElementById('editItemTag').value = tagName;
+      } else {
+        document.getElementById('tagSelect').value = tagName;
+      }
+      
+      showToast(`タグ「${tagName}」を追加しました`);
+    }
+
+    function getTagClass(tag) {
+      return TAG_COLORS[tag] || 'tag-custom';
+    }
+
+    // ============================================================
+    // Item Edit Modal
+    // ============================================================
+    function showEditModal(id) {
+      const item = listData.items.find(i => i.id === id);
+      if (!item) return;
+
+      editingItemId = id;
+      document.getElementById('editItemLabel').value = item.label;
+      document.getElementById('editItemTag').value = (item.tags && item.tags.length > 0) ? item.tags[0] : '';
+      document.getElementById('editItemModal').classList.add('show');
+      document.getElementById('editItemLabel').focus();
+    }
+
+    function hideEditModal() {
+      editingItemId = null;
+      document.getElementById('editItemModal').classList.remove('show');
+    }
+
+    function saveEditItem() {
+      if (!editingItemId) return;
+
+      const item = listData.items.find(i => i.id === editingItemId);
+      if (!item) return;
+
+      const newLabel = document.getElementById('editItemLabel').value.trim();
+      const newTag = document.getElementById('editItemTag').value;
+
+      if (!newLabel) {
+        showToast('アイテム名を入力してください', true);
+        return;
+      }
+
+      item.label = newLabel;
+      item.tags = newTag ? [newTag] : [];
+      item.updated_at = Date.now();
+
+      hideEditModal();
+      render();
+      saveList();
+      showToast('アイテムを更新しました');
+    }
+
+    // ============================================================
+    // Token Generation
+    // ============================================================
+    function generateToken() {
+      const array = new Uint8Array(16);
+      crypto.getRandomValues(array);
+      return btoa(String.fromCharCode(...array))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+    }
+
+    // ============================================================
+    // Auto-Polling (自動更新)
+    // ============================================================
+    function startPolling() {
+      if (pollTimer) clearInterval(pollTimer);
+      
+      pollTimer = setInterval(async () => {
+        // PUT中は競合を避けるためポーリングしない
+        if (isSaving) {
+          console.log('[Polling] Skipping poll during save operation');
+          return;
+        }
+        
+        await pollList();
+      }, POLL_INTERVAL_MS);
+    }
+
+    async function pollList() {
+      try {
+        showSyncIndicator(true);
+        
+        const response = await fetch(`${API_BASE}/api/list/${token}`);
+        if (!response.ok) {
+          console.error('[Polling] Failed to fetch:', response.status);
+          return;
+        }
+        
+        const remoteData = await response.json();
+        const remoteState = JSON.stringify(remoteData);
+        
+        // 差分がある場合のみ更新
+        if (remoteState !== lastSavedState) {
+          console.log('[Polling] Remote changes detected, updating UI');
+          listData = remoteData;
+          document.getElementById('title').textContent = listData.title;
+          lastSavedState = remoteState;
+          render();
+        }
+        
+        showSyncIndicator(false);
+      } catch (error) {
+        console.error('[Polling] Error:', error);
+        showSyncIndicator(false);
+      }
+    }
+
+    function showSyncIndicator(syncing) {
+      const indicator = document.getElementById('syncIndicator');
+      if (syncing) {
+        indicator.classList.add('syncing');
+      } else {
+        indicator.classList.remove('syncing');
+      }
+    }
+
+    // ============================================================
+    // API Calls
+    // ============================================================
+    async function loadList() {
+      try {
+        const response = await fetch(`${API_BASE}/api/list/${token}`);
+        if (!response.ok) throw new Error('Failed to load list');
+        
+        listData = await response.json();
+        document.getElementById('title').textContent = listData.title;
+        lastSavedState = JSON.stringify(listData);
+        render();
+      } catch (error) {
+        console.error('Error loading list:', error);
+        document.getElementById('itemList').innerHTML = 
+          '<li class="empty-state">読み込みに失敗しました</li>';
+      }
+    }
+
+    async function saveList() {
+      isSaving = true;
+      
+      try {
+        const response = await fetch(`${API_BASE}/api/list/${token}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(listData),
+        });
+        
+        if (!response.ok) throw new Error('Failed to save list');
+        
+        // 保存成功後、現在の状態を記録
+        lastSavedState = JSON.stringify(listData);
+      } catch (error) {
+        console.error('Error saving list:', error);
+        showToast('保存に失敗しました', true);
+      } finally {
+        isSaving = false;
+      }
+    }
+
+    /**
+     * AI Generate Shopping List
+     * Shows a modal with AI suggestions for user confirmation
+     */
+    let aiGenerateCooldown = false;
+    
+    async function handleAIGenerate() {
+      // Debounce: prevent rapid clicks
+      if (aiGenerateCooldown) {
+        showToast('少しお待ちください...', true);
+        return;
+      }
+      
+      const description = window.prompt('どんなリストを作りますか？例: 平日5日分の夕食の買い物リスト');
+      if (!description || description.trim().length === 0) {
+        return;
+      }
+      
+      const aiBtn = document.getElementById('aiGenerateBtn');
+      const originalText = aiBtn.textContent;
+      
+      try {
+        // Disable button and show loading state
+        aiBtn.disabled = true;
+        aiBtn.textContent = '生成中...';
+        aiGenerateCooldown = true;
+        
+        console.log('[DEBUG] Starting AI generation request...');
+        console.log('[DEBUG] Prompt:', description.trim());
+        console.log('[DEBUG] Token:', token);
+        
+        const response = await fetch(`${API_BASE}/api/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: description.trim(),
+            token: token,
+          }),
+        });
+        
+        console.log('[DEBUG] Response status:', response.status);
+        console.log('[DEBUG] Response ok:', response.ok);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const errorMessage = errorData.error || 'AI生成に失敗しました';
+          console.error('[DEBUG] AI generation error:', errorData);
+          throw new Error(errorMessage);
+        }
+        
+        const responseText = await response.text();
+        console.log('[DEBUG] Raw response text:', responseText);
+        
+        let result;
+        try {
+          result = JSON.parse(responseText);
+          console.log('[DEBUG] Parsed result:', result);
+        } catch (parseError) {
+          console.error('[DEBUG] JSON parse error:', parseError);
+          console.error('[DEBUG] Failed to parse:', responseText);
+          throw new Error('レスポンスのパースに失敗しました');
+        }
+
+        // Debug: Log the response structure
+        console.log('[DEBUG] result.status:', result?.status);
+        console.log('[DEBUG] typeof result.suggestions:', typeof result?.suggestions);
+        console.log('[DEBUG] Array.isArray(result.suggestions):', Array.isArray(result?.suggestions));
+        console.log('[DEBUG] typeof result.items:', typeof result?.items);
+        console.log('[DEBUG] Array.isArray(result.items):', Array.isArray(result?.items));
+
+        const normalizeSuggestion = (item, index) => {
+          const label = typeof item?.label === 'string' ? item.label.trim() : '';
+          if (!label) return null;
+
+          const rawTags = Array.isArray(item?.tags) ? item.tags.filter(tag => typeof tag === 'string' && tag.length > 0) : [];
+
+          return {
+            id: (typeof item?.id === 'string' && item.id.length > 0) ? item.id : crypto.randomUUID(),
+            label,
+            tags: rawTags.length > 0 ? rawTags : ['Woolies'],
+            checked: typeof item?.checked === 'boolean' ? item.checked : true,
+            pos: Number.isFinite(item?.pos) ? item.pos : index,
+            updated_at: Number.isFinite(item?.updated_at) ? item.updated_at : Date.now(),
+          };
+        };
+
+        let candidates = null;
+        if (result && Array.isArray(result.suggestions)) {
+          console.log('[DEBUG] Using result.suggestions, length:', result.suggestions.length);
+          candidates = result.suggestions;
+        } else if (result && Array.isArray(result.items)) {
+          console.log('[DEBUG] Using result.items, length:', result.items.length);
+          candidates = result.items;
+        } else {
+          console.error('[DEBUG] No valid candidates found');
+          console.error('[DEBUG] Full result object:', JSON.stringify(result, null, 2));
+        }
+
+        if (candidates) {
+          console.log('[DEBUG] Normalizing candidates...');
+          const normalizedSuggestions = candidates
+            .map((item, index) => normalizeSuggestion(item, index))
+            .filter(Boolean);
+
+          console.log('[DEBUG] Normalized suggestions count:', normalizedSuggestions.length);
+          
+          if (normalizedSuggestions.length > 0) {
+            console.log('[DEBUG] Showing AI suggestions modal');
+            showAISuggestionsModal(normalizedSuggestions);
+            return;
+          } else {
+            console.error('[DEBUG] No valid items after normalization');
+          }
+        }
+
+        console.error('[DEBUG] Invalid response format. Result:', JSON.stringify(result, null, 2));
+        throw new Error('Invalid response format');
+        
+      } catch (error) {
+        console.error('Error in AI generation:', error);
+        const errorMessage = error.message || 'AI生成に失敗しました。もう一度お試しください。';
+        alert(`エラー: ${errorMessage}`);
+      } finally {
+        // Re-enable button after delay (free-tier model: extended cooldown)
+        setTimeout(() => {
+          aiBtn.disabled = false;
+          aiBtn.textContent = originalText;
+          aiGenerateCooldown = false;
+        }, 5000); // 5 second cooldown for free-tier rate limits
+      }
+    }
+
+    /**
+     * Show AI Suggestions Modal
+     * Displays suggested items for user to select
+     */
+    function showAISuggestionsModal(suggestions) {
+      const modal = document.getElementById('aiSuggestionsModal');
+      const listDiv = document.getElementById('suggestionList');
+      
+      // Clear previous suggestions
+      listDiv.innerHTML = '';
+      
+      // Add each suggestion as a checkbox
+      for (const item of suggestions) {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = true;
+        checkbox.dataset.label = item.label;
+        checkbox.dataset.tag = item.tags[0] || 'Woolies';
+        
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'suggestion-label';
+        labelSpan.textContent = item.label;
+        
+        const tagSpan = document.createElement('span');
+        tagSpan.className = 'suggestion-tag';
+        tagSpan.textContent = item.tags[0] || 'Woolies';
+        
+        label.appendChild(checkbox);
+        label.appendChild(labelSpan);
+        label.appendChild(tagSpan);
+        
+        listDiv.appendChild(label);
+      }
+      
+      // Show modal
+      modal.classList.add('show');
+      
+      // Setup button handlers (remove old listeners first)
+      const addBtn = document.getElementById('addSelected');
+      const cancelBtn = document.getElementById('cancelSuggestions');
+      
+      const newAddBtn = addBtn.cloneNode(true);
+      const newCancelBtn = cancelBtn.cloneNode(true);
+      addBtn.parentNode.replaceChild(newAddBtn, addBtn);
+      cancelBtn.parentNode.replaceChild(newCancelBtn, cancelBtn);
+      
+      // Add button: Add selected items to list
+      newAddBtn.addEventListener('click', () => {
+        const selected = Array.from(listDiv.querySelectorAll('input:checked')).map(cb => ({
+          id: crypto.randomUUID(),
+          label: cb.dataset.label,
+          tags: [cb.dataset.tag],
+          checked: false,
+          pos: listData.items.length + Math.random(), // Temporary pos, will be renumbered
+          updated_at: Date.now()
+        }));
+        
+        if (selected.length === 0) {
+          alert('追加するアイテムを選択してください');
+          return;
+        }
+        
+        // Add to list
+        listData.items.push(...selected);
+        
+        // Renumber positions
+        listData.items.forEach((item, index) => {
+          item.pos = index;
+        });
+        
+        // Update UI and save
+        render();
+        saveList();
+        
+        // Close modal
+        modal.classList.remove('show');
+        
+        showToast(`${selected.length}件のアイテムを追加しました`);
+      });
+      
+      // Cancel button: Close modal
+      newCancelBtn.addEventListener('click', () => {
+        modal.classList.remove('show');
+      });
+    }
+
+    // ============================================================
+    // Item Operations
+    // ============================================================
+    function handleAdd() {
+      const input = document.getElementById('newItemInput');
+      const label = input.value.trim();
+      
+      if (!label) return;
+
+      const tagSelect = document.getElementById('tagSelect');
+      const selectedTag = tagSelect.value;
+
+      const newItem = {
+        id: crypto.randomUUID(),
+        label,
+        checked: false,
+        tags: selectedTag ? [selectedTag] : [],
+        pos: listData.items.length,
+        updated_at: Date.now(),
+      };
+
+      listData.items.push(newItem);
+      input.value = '';
+      tagSelect.value = ''; // Reset tag selection
+      
+      // 楽観的UI更新
+      render();
+      saveList();
+    }
+
+    function handleToggle(id) {
+      const item = listData.items.find(i => i.id === id);
+      if (!item) return;
+
+      item.checked = !item.checked;
+      item.updated_at = Date.now();
+
+      // Sort: unchecked first, then by pos
+      listData.items.sort((a, b) => {
+        if (a.checked !== b.checked) {
+          return a.checked ? 1 : -1;
+        }
+        return a.pos - b.pos;
+      });
+
+      // Renumber positions
+      listData.items.forEach((item, index) => {
+        item.pos = index;
+      });
+
+      // 楽観的UI更新
+      render();
+      saveList();
+    }
+
+    // ============================================================
+    // Rendering
+    // ============================================================
+    function render() {
+      const listEl = document.getElementById('itemList');
+      
+      // Filter items by check status
+      let itemsToShow = listData.items;
+      if (currentFilter === 'unchecked') {
+        itemsToShow = listData.items.filter(item => !item.checked);
+      }
+
+      // Filter items by tag
+      if (currentTagFilter && currentTagFilter !== 'all') {
+        itemsToShow = itemsToShow.filter(item => {
+          return item.tags && item.tags.includes(currentTagFilter);
+        });
+      }
+
+      // Sort for display
+      itemsToShow.sort((a, b) => {
+        if (a.checked !== b.checked) {
+          return a.checked ? 1 : -1;
+        }
+        
+        // When showing all items (including checked), sort checked items by updated_at (newest first)
+        if (currentFilter === 'all' && a.checked && b.checked) {
+          return b.updated_at - a.updated_at;
+        }
+        
+        return a.pos - b.pos;
+      });
+
+      if (itemsToShow.length === 0) {
+        listEl.innerHTML = '<li class="empty-state">アイテムがありません</li>';
+        updateTagFilter(); // Update tag filter even when empty
+        return;
+      }
+
+      listEl.innerHTML = itemsToShow.map(item => {
+        const tags = item.tags || [];
+        const tagBadges = tags.map(tag => 
+          `<span class="tag-badge ${getTagClass(tag)}">${escapeHtml(tag)}</span>`
+        ).join('');
+
+        return `
+        <li class="item" onclick="showEditModal('${item.id}')">
+          <span class="item-label ${item.checked ? 'checked' : ''}">
+            <span class="item-label-text">${escapeHtml(item.label)}</span>
+            ${tagBadges ? `<div class="item-tags">${tagBadges}</div>` : ''}
+          </span>
+          <div class="item-checkbox-wrapper">
+            <input 
+              type="checkbox" 
+              ${item.checked ? 'checked' : ''} 
+              onclick="event.stopPropagation()"
+              onchange="handleToggle('${item.id}')"
+              aria-label="${escapeHtml(item.label)}をチェック"
+            >
+          </div>
+        </li>
+      `;
+      }).join('');
+
+      // Update tag filter options based on current items
+      updateTagFilter();
+    }
+
+    // ============================================================
+    // Utilities
+    // ============================================================
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // ============================================================
+    // Share Modal Functions
+    // ============================================================
+    function showShareModal() {
+      const modal = document.getElementById('shareModal');
+      modal.style.display = 'flex';
+    }
+
+    function hideShareModal() {
+      const modal = document.getElementById('shareModal');
+      modal.style.display = 'none';
+    }
+
+    async function copyShareUrl() {
+      const input = document.getElementById('shareUrlInput');
+      const btn = document.getElementById('copyBtn');
+      const url = input.value;
+
+      try {
+        await navigator.clipboard.writeText(url);
+        
+        btn.textContent = '✓ Copied';
+        btn.classList.add('copied');
+        showToast('URLをコピーしました！');
+        
+        setTimeout(() => {
+          btn.textContent = 'Copy';
+          btn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        // Fallback
+        input.select();
+        input.setSelectionRange(0, 99999);
+        
+        try {
+          document.execCommand('copy');
+          btn.textContent = '✓ Copied';
+          btn.classList.add('copied');
+          showToast('URLをコピーしました！');
+          
+          setTimeout(() => {
+            btn.textContent = 'Copy';
+            btn.classList.remove('copied');
+          }, 2000);
+        } catch (err2) {
+          console.error('Failed to copy:', err2);
+          showToast('コピーに失敗しました', true);
+        }
+      }
+    }
+
+    async function copyToClipboard() {
+      // Legacy function - now redirects to copyShareUrl
+      await copyShareUrl();
+    }
+
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.style.background = isError ? '#dc3545' : '#333';
+      toast.classList.add('show');
+      
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 2000);
+    }
+  </script>
+</body>
+</html>
