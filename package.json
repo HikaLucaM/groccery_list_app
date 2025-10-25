@@ -4,9 +4,15 @@
   "description": "Simple shared shopping list with Cloudflare Workers + KV",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20251014.0",
+    "jsdom": "^27.0.1",
+    "vitest": "^4.0.3",
     "wrangler": "^3.78.0"
   }
 }

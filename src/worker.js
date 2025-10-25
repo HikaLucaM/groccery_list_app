@@ -65,17 +65,19 @@ export default {
  */
 async function handleGet(kv, kvKey) {
   const stored = await kv.get(kvKey, 'text');
-  
+
   if (!stored) {
-    // Return default empty list
-    const defaultDoc = {
-      title: 'Shopping',
-      items: [],
-    };
-    return jsonResponse(defaultDoc);
+    return jsonResponse(createDefaultDocument());
   }
 
   const doc = JSON.parse(stored);
+  if (!Array.isArray(doc.items)) {
+    doc.items = [];
+  }
+  if (typeof doc.version !== 'number') {
+    doc.version = 0;
+  }
+
   return jsonResponse(doc);
 }
 
@@ -96,36 +98,88 @@ async function handlePut(request, kv, kvKey) {
     return jsonResponse({ error: 'Invalid document structure' }, 400);
   }
 
-  // Validate and normalize items
-  const items = body.items.map((item, index) => {
-    if (!item.id || typeof item.label !== 'string' || typeof item.checked !== 'boolean') {
-      throw new Error('Invalid item structure');
+  const deletedItemIds = Array.isArray(body.deletedItemIds)
+    ? body.deletedItemIds.filter((id) => typeof id === 'string' && id.length > 0)
+    : [];
+
+  const incomingItems = new Map();
+  try {
+    body.items.forEach((item, index) => {
+      const normalized = normalizeItem(item, index);
+      incomingItems.set(normalized.id, normalized);
+    });
+  } catch (error) {
+    return jsonResponse({ error: error.message || 'Invalid item data' }, 400);
+  }
+
+  const stored = await kv.get(kvKey, 'text');
+  const existingDoc = stored ? JSON.parse(stored) : createDefaultDocument();
+  if (!Array.isArray(existingDoc.items)) {
+    existingDoc.items = [];
+  }
+  if (typeof existingDoc.version !== 'number') {
+    existingDoc.version = 0;
+  }
+
+  const existingItems = new Map();
+  try {
+    existingDoc.items.forEach((item, index) => {
+      const normalized = normalizeItem(item, index);
+      existingItems.set(normalized.id, normalized);
+    });
+  } catch (error) {
+    // If existing data is corrupted, start fresh
+    console.error('Error normalizing existing items:', error);
+  }
+
+  const deletedSet = new Set(deletedItemIds);
+  const mergedItems = [];
+  const processedIds = new Set();
+
+  // Resolve items present in incoming payload
+  for (const [id, incomingItem] of incomingItems.entries()) {
+    if (deletedSet.has(id)) {
+      processedIds.add(id);
+      continue;
     }
-    
-    // Tags support (optional, backward compatible)
-    const tags = Array.isArray(item.tags) 
-      ? item.tags.filter(t => typeof t === 'string' && t.length > 0)
-      : [];
-    
-    return {
-      id: item.id,
-      label: item.label,
-      checked: item.checked,
-      tags, // Array of tag strings
-      pos: index, // Renumber positions 0..N-1
-      updated_at: item.updated_at || Date.now(),
-    };
+
+    const existingItem = existingItems.get(id);
+    if (existingItem) {
+      const incomingUpdatedAt = Number(incomingItem.updated_at) || 0;
+      const existingUpdatedAt = Number(existingItem.updated_at) || 0;
+      mergedItems.push(incomingUpdatedAt >= existingUpdatedAt ? incomingItem : existingItem);
+      processedIds.add(id);
+    } else {
+      mergedItems.push(incomingItem);
+      processedIds.add(id);
+    }
+  }
+
+  // Preserve items that were not included in this payload and not explicitly deleted
+  for (const [id, existingItem] of existingItems.entries()) {
+    if (processedIds.has(id)) continue;
+    if (deletedSet.has(id)) continue;
+    mergedItems.push(existingItem);
+  }
+
+  mergedItems.sort((a, b) => (a.pos ?? 0) - (b.pos ?? 0));
+  mergedItems.forEach((item, index) => {
+    item.pos = index;
   });
 
-  const doc = {
-    title: body.title,
-    items,
+  const nextVersion = (existingDoc.version || 0) + 1;
+  const incomingTitle = typeof body.title === 'string' ? body.title : existingDoc.title || 'Shopping';
+
+  const mergedDoc = {
+    title: incomingTitle,
+    items: mergedItems,
+    version: nextVersion,
+    updated_at: Date.now(),
   };
 
-  // Store in KV
-  await kv.put(kvKey, JSON.stringify(doc));
+  await kv.put(kvKey, JSON.stringify(mergedDoc));
 
-  return jsonResponse({ ok: true });
+  return jsonResponse(mergedDoc);
 }
 
 /**
@@ -148,4 +202,51 @@ function jsonResponse(data, status = 200) {
       ...CORS_HEADERS,
     },
   });
+}
+
+function createDefaultDocument() {
+  return {
+    title: 'Shopping',
+    items: [],
+    version: 0,
+    updated_at: Date.now(),
+  };
+}
+
+function normalizeItem(item, fallbackPos = 0) {
+  if (!item || typeof item !== 'object') {
+    throw new Error('Invalid item structure');
+  }
+
+  if (typeof item.id !== 'string' || !item.id) {
+    throw new Error('Item missing id');
+  }
+
+  if (typeof item.label !== 'string') {
+    throw new Error('Item missing label');
+  }
+
+  if (typeof item.checked !== 'boolean') {
+    throw new Error('Item missing checked state');
+  }
+
+  const tags = Array.isArray(item.tags)
+    ? item.tags.filter((tag) => typeof tag === 'string' && tag.length > 0)
+    : [];
+
+  let updatedAt = Number(item.updated_at);
+  if (!Number.isFinite(updatedAt) || updatedAt <= 0) {
+    updatedAt = Date.now();
+  }
+
+  const pos = Number.isFinite(item.pos) ? Number(item.pos) : fallbackPos;
+
+  return {
+    id: item.id,
+    label: item.label,
+    checked: item.checked,
+    tags,
+    pos,
+    updated_at: updatedAt,
+  };
 }
