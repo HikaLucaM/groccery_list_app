@@ -1542,13 +1542,51 @@
         }
         
         const result = await response.json();
-        
-        if (result.status === 'ok' && Array.isArray(result.suggestions)) {
-          // Show AI suggestions modal
-          showAISuggestionsModal(result.suggestions);
-        } else {
-          throw new Error('Invalid response format');
+
+        // Debug: Log the response structure
+        console.log('AI Response:', result);
+        console.log('Status:', result?.status);
+        console.log('Suggestions type:', typeof result?.suggestions);
+        console.log('Is array:', Array.isArray(result?.suggestions));
+        console.log('Items type:', typeof result?.items);
+        console.log('Items is array:', Array.isArray(result?.items));
+
+        const normalizeSuggestion = (item, index) => {
+          const label = typeof item?.label === 'string' ? item.label.trim() : '';
+          if (!label) return null;
+
+          const rawTags = Array.isArray(item?.tags) ? item.tags.filter(tag => typeof tag === 'string' && tag.length > 0) : [];
+
+          return {
+            id: (typeof item?.id === 'string' && item.id.length > 0) ? item.id : crypto.randomUUID(),
+            label,
+            tags: rawTags.length > 0 ? rawTags : ['Woolies'],
+            checked: typeof item?.checked === 'boolean' ? item.checked : true,
+            pos: Number.isFinite(item?.pos) ? item.pos : index,
+            updated_at: Number.isFinite(item?.updated_at) ? item.updated_at : Date.now(),
+          };
+        };
+
+        let candidates = null;
+        if (result && Array.isArray(result.suggestions)) {
+          candidates = result.suggestions;
+        } else if (result && Array.isArray(result.items)) {
+          candidates = result.items;
         }
+
+        if (candidates) {
+          const normalizedSuggestions = candidates
+            .map((item, index) => normalizeSuggestion(item, index))
+            .filter(Boolean);
+
+          if (normalizedSuggestions.length > 0) {
+            showAISuggestionsModal(normalizedSuggestions);
+            return;
+          }
+        }
+
+        console.error('Invalid response format. Result:', JSON.stringify(result));
+        throw new Error('Invalid response format');
         
       } catch (error) {
         console.error('Error in AI generation:', error);
