@@ -1543,10 +1543,17 @@
         
         const result = await response.json();
         
+        // Debug: Log the response structure
+        console.log('AI Response:', result);
+        console.log('Status:', result.status);
+        console.log('Suggestions type:', typeof result.suggestions);
+        console.log('Is array:', Array.isArray(result.suggestions));
+        
         if (result.status === 'ok' && Array.isArray(result.suggestions)) {
           // Show AI suggestions modal
           showAISuggestionsModal(result.suggestions);
         } else {
+          console.error('Invalid response format. Result:', JSON.stringify(result));
           throw new Error('Invalid response format');
         }
         
