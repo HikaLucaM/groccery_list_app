@@ -1525,6 +1525,10 @@
         aiBtn.textContent = '生成中...';
         aiGenerateCooldown = true;
         
+        console.log('[DEBUG] Starting AI generation request...');
+        console.log('[DEBUG] Prompt:', description.trim());
+        console.log('[DEBUG] Token:', token);
+        
         const response = await fetch(`${API_BASE}/api/generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1534,22 +1538,35 @@
           }),
         });
         
+        console.log('[DEBUG] Response status:', response.status);
+        console.log('[DEBUG] Response ok:', response.ok);
+        
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
           const errorMessage = errorData.error || 'AI生成に失敗しました';
-          console.error('AI generation error:', errorData);
+          console.error('[DEBUG] AI generation error:', errorData);
           throw new Error(errorMessage);
         }
         
-        const result = await response.json();
+        const responseText = await response.text();
+        console.log('[DEBUG] Raw response text:', responseText);
+        
+        let result;
+        try {
+          result = JSON.parse(responseText);
+          console.log('[DEBUG] Parsed result:', result);
+        } catch (parseError) {
+          console.error('[DEBUG] JSON parse error:', parseError);
+          console.error('[DEBUG] Failed to parse:', responseText);
+          throw new Error('レスポンスのパースに失敗しました');
+        }
 
         // Debug: Log the response structure
-        console.log('AI Response:', result);
-        console.log('Status:', result?.status);
-        console.log('Suggestions type:', typeof result?.suggestions);
-        console.log('Is array:', Array.isArray(result?.suggestions));
-        console.log('Items type:', typeof result?.items);
-        console.log('Items is array:', Array.isArray(result?.items));
+        console.log('[DEBUG] result.status:', result?.status);
+        console.log('[DEBUG] typeof result.suggestions:', typeof result?.suggestions);
+        console.log('[DEBUG] Array.isArray(result.suggestions):', Array.isArray(result?.suggestions));
+        console.log('[DEBUG] typeof result.items:', typeof result?.items);
+        console.log('[DEBUG] Array.isArray(result.items):', Array.isArray(result?.items));
 
         const normalizeSuggestion = (item, index) => {
           const label = typeof item?.label === 'string' ? item.label.trim() : '';
@@ -1569,23 +1586,34 @@
 
         let candidates = null;
         if (result && Array.isArray(result.suggestions)) {
+          console.log('[DEBUG] Using result.suggestions, length:', result.suggestions.length);
           candidates = result.suggestions;
         } else if (result && Array.isArray(result.items)) {
+          console.log('[DEBUG] Using result.items, length:', result.items.length);
           candidates = result.items;
+        } else {
+          console.error('[DEBUG] No valid candidates found');
+          console.error('[DEBUG] Full result object:', JSON.stringify(result, null, 2));
         }
 
         if (candidates) {
+          console.log('[DEBUG] Normalizing candidates...');
           const normalizedSuggestions = candidates
             .map((item, index) => normalizeSuggestion(item, index))
             .filter(Boolean);
 
+          console.log('[DEBUG] Normalized suggestions count:', normalizedSuggestions.length);
+          
           if (normalizedSuggestions.length > 0) {
+            console.log('[DEBUG] Showing AI suggestions modal');
             showAISuggestionsModal(normalizedSuggestions);
             return;
+          } else {
+            console.error('[DEBUG] No valid items after normalization');
           }
         }
 
-        console.error('Invalid response format. Result:', JSON.stringify(result));
+        console.error('[DEBUG] Invalid response format. Result:', JSON.stringify(result, null, 2));
         throw new Error('Invalid response format');
         
       } catch (error) {
