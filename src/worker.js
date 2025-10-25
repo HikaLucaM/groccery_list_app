@@ -1,11 +1,67 @@
 /**
  * Cloudflare Worker for Shared Shopping List API
+ * 
+ * NEW FEATURE: AI Shopping Concierge
+ * ===================================
+ * 
+ * Endpoint: POST /api/generate
+ * 
+ * This endpoint allows users to generate shopping lists from natural language prompts
+ * using AI (OpenRouter API with Llama 3 70B by default).
+ * 
+ * Testing Instructions:
+ * ---------------------
+ * 1. Set up the OpenRouter API key:
+ *    wrangler secret put OPENROUTER_API_KEY
+ * 
+ * 2. (Optional) Set a different model:
+ *    wrangler secret put MODEL
+ *    Default: meta-llama/llama-3-70b-instruct
+ * 
+ * 3. Run locally:
+ *    wrangler dev
+ * 
+ * 4. Open in browser:
+ *    http://127.0.0.1:8787/?t=<your_token>
+ *    (Use any alphanumeric token 16+ chars, e.g., "test1234567890abc")
+ * 
+ * 5. Click the "🤖 AI" button in the bottom bar
+ * 
+ * 6. Enter a prompt like:
+ *    - "平日5日分の夕食の買い物リスト"
+ *    - "週末のバーベキューに必要なもの"
+ *    - "一人暮らしの基本的な食材"
+ * 
+ * 7. The list will be generated and automatically saved to KV
+ * 
+ * Request format:
+ * POST /api/generate
+ * {
+ *   "prompt": "平日5日分の夕食の買い物リスト",
+ *   "token": "your-list-token-here"
+ * }
+ * 
+ * Response format (success):
+ * {
+ *   "status": "success",
+ *   "items": [
+ *     {
+ *       "id": "uuid",
+ *       "label": "牛肉",
+ *       "tags": ["Woolies"],
+ *       "checked": false,
+ *       "pos": 0,
+ *       "updated_at": 1234567890
+ *     },
+ *     ...
+ *   ]
+ * }
  */
 
 // CORS headers
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, PUT, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': '86400',
 };
@@ -24,6 +80,11 @@ export default {
         status: 204,
         headers: CORS_HEADERS,
       });
+    }
+
+    // Parse path: /api/generate
+    if (url.pathname === '/api/generate' && method === 'POST') {
+      return await handleGenerate(request, env);
     }
 
     // Parse path: /api/list/:token
@@ -249,4 +310,170 @@ function normalizeItem(item, fallbackPos = 0) {
     pos,
     updated_at: updatedAt,
   };
+}
+
+/**
+ * POST /api/generate
+ * Generate shopping list using AI (OpenRouter)
+ */
+async function handleGenerate(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ error: 'Invalid JSON' }, 400);
+  }
+
+  const { prompt, token } = body;
+
+  // Validate input
+  if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
+    return jsonResponse({ error: 'Missing or invalid prompt' }, 400);
+  }
+
+  if (!token || typeof token !== 'string') {
+    return jsonResponse({ error: 'Missing token' }, 400);
+  }
+
+  // Validate token format
+  if (!TOKEN_PATTERN.test(token)) {
+    return jsonResponse({ error: 'Invalid token format' }, 400);
+  }
+
+  // Fetch existing list document
+  const kvKey = `list:${token}`;
+  const stored = await env.SHOPLIST.get(kvKey, 'text');
+  const existingDoc = stored ? JSON.parse(stored) : createDefaultDocument();
+
+  // Call OpenRouter API
+  try {
+    const model = env.MODEL || 'meta-llama/llama-3-70b-instruct';
+    const apiKey = env.OPENROUTER_API_KEY;
+
+    if (!apiKey) {
+      console.error('OPENROUTER_API_KEY not configured');
+      return jsonResponse({ error: 'AI service not configured' }, 500);
+    }
+
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
+
+    const openRouterResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: model,
+        temperature: 0.2,
+        top_p: 0.9,
+        max_tokens: 600,
+        messages: [
+          {
+            role: 'system',
+            content: 'You generate STRICT JSON shopping lists in Japanese. Output ONLY minified JSON with this schema and nothing else.',
+          },
+          {
+            role: 'user',
+            content: `${prompt}。以下のJSONスキーマに完全準拠し、余計な文章は一切返さないこと。必ずminifiedなJSONのみ出力: {"items":[{"label":"string","tags":"string[]","checked":false}]}.`,
+          },
+        ],
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!openRouterResponse.ok) {
+      console.error('OpenRouter API error:', openRouterResponse.status, await openRouterResponse.text());
+      return jsonResponse({ error: 'AI service error' }, 502);
+    }
+
+    const openRouterData = await openRouterResponse.json();
+    
+    // Extract content from response
+    if (!openRouterData.choices || !openRouterData.choices[0] || !openRouterData.choices[0].message) {
+      console.error('Invalid OpenRouter response structure:', openRouterData);
+      return jsonResponse({ error: 'Invalid AI response' }, 502);
+    }
+
+    let content = openRouterData.choices[0].message.content;
+
+    // Strip code fences if present
+    content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+
+    // Extract first JSON object
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      console.error('No JSON found in response:', content);
+      return jsonResponse({ error: 'AI did not return valid JSON' }, 502);
+    }
+
+    const generatedData = JSON.parse(jsonMatch[0]);
+
+    // Validate structure
+    if (!generatedData.items || !Array.isArray(generatedData.items)) {
+      console.error('Invalid items structure:', generatedData);
+      return jsonResponse({ error: 'Invalid AI response structure' }, 502);
+    }
+
+    // Normalize items
+    const normalizedItems = [];
+    for (let i = 0; i < generatedData.items.length; i++) {
+      const item = generatedData.items[i];
+      
+      if (!item.label || typeof item.label !== 'string') {
+        continue; // Skip invalid items
+      }
+
+      const label = item.label.trim().slice(0, 64);
+      if (label.length === 0) {
+        continue;
+      }
+
+      // Extract only first tag if tags array exists
+      let tags = [];
+      if (Array.isArray(item.tags) && item.tags.length > 0) {
+        const firstTag = item.tags.find(tag => typeof tag === 'string' && tag.length > 0);
+        if (firstTag) {
+          tags = [firstTag];
+        }
+      }
+
+      normalizedItems.push({
+        id: crypto.randomUUID(),
+        label: label,
+        tags: tags,
+        checked: false,
+        pos: i,
+        updated_at: Date.now(),
+      });
+    }
+
+    // Build new document
+    const newDoc = {
+      title: existingDoc.title || 'Shopping',
+      items: normalizedItems,
+      version: (existingDoc.version || 0) + 1,
+      updated_at: Date.now(),
+    };
+
+    // Save to KV
+    await env.SHOPLIST.put(kvKey, JSON.stringify(newDoc));
+
+    return jsonResponse({
+      status: 'success',
+      items: normalizedItems,
+    });
+
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('OpenRouter API timeout');
+      return jsonResponse({ error: 'AI service timeout' }, 504);
+    }
+    console.error('Error in handleGenerate:', error);
+    return jsonResponse({ error: 'Internal server error' }, 500);
+  }
 }

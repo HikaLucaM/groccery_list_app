@@ -506,6 +506,39 @@
       transform: scale(0.96);
     }
     
+    /* AI生成ボタン */
+    .ai-generate-btn {
+      padding: 14px 16px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 800;
+      white-space: nowrap;
+      min-height: 50px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+      transition: all 0.3s ease;
+      min-width: 60px;
+    }
+    
+    .ai-generate-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.5);
+    }
+    
+    .ai-generate-btn:active {
+      transform: scale(0.96);
+    }
+    
+    .ai-generate-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
     /* モーダル */
     .modal {
       display: none;
@@ -934,6 +967,7 @@
       <option value="">タグなし</option>
     </select>
     <button id="addBtn" aria-label="追加">追加</button>
+    <button id="aiGenerateBtn" class="ai-generate-btn" aria-label="AIでリストを作成">🤖 AI</button>
   </div>
 
   <!-- トースト通知 -->
@@ -1042,6 +1076,7 @@
 
       // Event listeners
       document.getElementById('addBtn').addEventListener('click', handleAdd);
+      document.getElementById('aiGenerateBtn').addEventListener('click', handleAIGenerate);
       document.getElementById('newItemInput').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -1384,6 +1419,78 @@
         showToast('保存に失敗しました', true);
       } finally {
         isSaving = false;
+      }
+    }
+
+    /**
+     * AI Generate Shopping List
+     * Calls /api/generate to create a list from natural language prompt
+     */
+    let aiGenerateCooldown = false;
+    
+    async function handleAIGenerate() {
+      // Debounce: prevent rapid clicks
+      if (aiGenerateCooldown) {
+        showToast('少しお待ちください...', true);
+        return;
+      }
+      
+      const description = window.prompt('どんなリストを作りますか？例: 平日5日分の夕食の買い物リスト');
+      if (!description || description.trim().length === 0) {
+        return;
+      }
+      
+      const aiBtn = document.getElementById('aiGenerateBtn');
+      const originalText = aiBtn.textContent;
+      
+      try {
+        // Disable button and show loading state
+        aiBtn.disabled = true;
+        aiBtn.textContent = '生成中...';
+        aiGenerateCooldown = true;
+        
+        const response = await fetch(`${API_BASE}/api/generate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: description.trim(),
+            token: token,
+          }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'AI generation failed');
+        }
+        
+        const result = await response.json();
+        
+        if (result.status === 'success' && Array.isArray(result.items)) {
+          // Update list data with generated items
+          listData = {
+            title: listData.title,
+            items: result.items,
+            version: (listData.version || 0) + 1,
+            updated_at: Date.now(),
+          };
+          
+          render();
+          await saveList();
+          showToast(`${result.items.length}件のアイテムを生成しました`);
+        } else {
+          throw new Error('Invalid response format');
+        }
+        
+      } catch (error) {
+        console.error('Error in AI generation:', error);
+        alert('AI生成に失敗しました。もう一度お試しください。');
+      } finally {
+        // Re-enable button after delay
+        setTimeout(() => {
+          aiBtn.disabled = false;
+          aiBtn.textContent = originalText;
+          aiGenerateCooldown = false;
+        }, 3000); // 3 second cooldown
       }
     }
 
