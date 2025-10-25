@@ -8,8 +8,17 @@ A lightweight Cloudflare Workers + KV app for sharing grocery lists with one URL
 
 - Live: https://shared-shopping-list.grocery-shopping-list.workers.dev
 - Screenshots:
+
+  
   <img width="200" height="450" alt="Shared Shopping List" src="https://github.com/user-attachments/assets/8425f181-ce51-444b-9ff4-3b9fd5d83b4f" />
-  <img width="200" height="450" alt="Shared Shopping List-1" src="https://github.com/user-attachments/assets/59eab371-ef72-4f7a-bfd2-63f6bab7d8db" />
+
+  <img width="200" height="450" alt="image" src="https://github.com/user-attachments/assets/e02e1ec3-4b88-47c2-8770-ec6b3f61e22d" />
+  <img width="200" height="450" alt="image" src="https://github.com/user-attachments/assets/01a4f30b-d298-4b2f-b5fc-1ced52ac93dc" />
+  <img width="200" height="450" alt="image" src="https://github.com/user-attachments/assets/3a91527b-dc06-447f-bf95-678c5afb18aa" />
+
+
+
+
 
 ## ✨ Features
 
