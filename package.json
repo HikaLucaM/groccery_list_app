@@ -2,6 +2,7 @@
   "name": "shared-shopping-list",
   "version": "1.0.0",
   "description": "Simple shared shopping list with Cloudflare Workers + KV",
+  "type": "module",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
