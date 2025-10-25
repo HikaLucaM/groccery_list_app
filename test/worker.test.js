@@ -71,6 +71,7 @@ describe('Cloudflare Worker API', () => {
       expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
       expect(response.headers.get('Access-Control-Allow-Methods')).toContain('GET');
       expect(response.headers.get('Access-Control-Allow-Methods')).toContain('PUT');
+      expect(response.headers.get('Access-Control-Allow-Methods')).toContain('POST');
     });
 
     it('should include CORS headers in all responses', async () => {
@@ -802,6 +803,408 @@ describe('Cloudflare Worker API', () => {
       expect(response.status).toBe(405);
       const data = await response.json();
       expect(data.error).toContain('Method not allowed');
+    });
+  });
+
+  describe('POST /api/generate - AI Shopping List Generation', () => {
+    let consoleErrorSpy;
+
+    beforeEach(() => {
+      // Mock OpenRouter API key
+      env.OPENROUTER_API_KEY = 'test-api-key';
+      env.MODEL = 'meta-llama/llama-3-70b-instruct';
+      consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      if (consoleErrorSpy) {
+        consoleErrorSpy.mockRestore();
+      }
+    });
+
+    it('should reject request without prompt', async () => {
+      const request = createRequest('POST', '/api/generate', {
+        token: 'test-token-123456',
+      });
+      const response = await worker.fetch(request, env);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toContain('prompt');
+    });
+
+    it('should reject request without token', async () => {
+      const request = createRequest('POST', '/api/generate', {
+        prompt: 'テスト用の買い物リスト',
+      });
+      const response = await worker.fetch(request, env);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toContain('token');
+    });
+
+    it('should reject request with invalid token format', async () => {
+      const request = createRequest('POST', '/api/generate', {
+        prompt: 'テスト用の買い物リスト',
+        token: 'short',
+      });
+      const response = await worker.fetch(request, env);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toContain('Invalid token format');
+    });
+
+    it('should reject request with empty prompt', async () => {
+      const request = createRequest('POST', '/api/generate', {
+        prompt: '   ',
+        token: 'test-token-123456',
+      });
+      const response = await worker.fetch(request, env);
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.error).toContain('prompt');
+    });
+
+    it('should handle missing API key gracefully', async () => {
+      delete env.OPENROUTER_API_KEY;
+
+      const request = createRequest('POST', '/api/generate', {
+        prompt: 'テスト用の買い物リスト',
+        token: 'test-token-123456',
+      });
+      const response = await worker.fetch(request, env);
+
+      expect(response.status).toBe(500);
+      const data = await response.json();
+      expect(data.error).toContain('AI service not configured');
+    });
+
+    it('should successfully generate list with mocked OpenRouter response', async () => {
+      const token = 'generate-test-token-123';
+      
+      // Mock global fetch for OpenRouter API
+      const originalFetch = global.fetch;
+      global.fetch = vi.fn((url, options) => {
+        if (url.includes('openrouter.ai')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content: JSON.stringify({
+                      items: [
+                        { label: '牛乳', tags: ['Woolies'], checked: false },
+                        { label: 'パン', tags: ['Coles'], checked: false },
+                        { label: '卵', tags: ['ALDI'], checked: false },
+                      ],
+                    }),
+                  },
+                },
+              ],
+            }),
+          });
+        }
+        return originalFetch(url, options);
+      });
+
+      const request = createRequest('POST', '/api/generate', {
+        prompt: '週末の朝食用の買い物リスト',
+        token: token,
+      });
+
+      const response = await worker.fetch(request, env);
+      
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      
+      expect(data.status).toBe('success');
+      expect(data.items).toHaveLength(3);
+      expect(data.items[0].label).toBe('牛乳');
+      expect(data.items[0].tags).toEqual(['Woolies']);
+      expect(data.items[0].checked).toBe(false);
+      expect(data.items[0].id).toBeDefined();
+      expect(data.items[0].pos).toBe(0);
+      expect(data.items[0].updated_at).toBeDefined();
+
+      // Verify saved to KV
+      const getReq = createRequest('GET', `/api/list/${token}`);
+      const getRes = await worker.fetch(getReq, env);
+      const savedData = await getRes.json();
+      
+      expect(savedData.items).toHaveLength(3);
+      expect(savedData.version).toBe(1);
+
+      // Restore original fetch
+      global.fetch = originalFetch;
+    });
+
+    it('should handle OpenRouter response with code fences', async () => {
+      const token = 'generate-fence-token-123';
+      
+      const originalFetch = global.fetch;
+      global.fetch = vi.fn((url) => {
+        if (url.includes('openrouter.ai')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content: '```json\n{"items":[{"label":"トマト","tags":["Asian Grocery"],"checked":false}]}\n```',
+                  },
+                },
+              ],
+            }),
+          });
+        }
+        return originalFetch(url);
+      });
+
+      const request = createRequest('POST', '/api/generate', {
+        prompt: 'アジア食材の買い物',
+        token: token,
+      });
+
+      const response = await worker.fetch(request, env);
+      
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      
+      expect(data.status).toBe('success');
+      expect(data.items).toHaveLength(1);
+      expect(data.items[0].label).toBe('トマト');
+
+      global.fetch = originalFetch;
+    });
+
+    it('should use only first tag when multiple tags provided', async () => {
+      const token = 'multi-tag-token-123';
+      
+      const originalFetch = global.fetch;
+      global.fetch = vi.fn((url) => {
+        if (url.includes('openrouter.ai')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content: JSON.stringify({
+                      items: [
+                        { label: 'りんご', tags: ['Woolies', 'Coles', 'ALDI'], checked: false },
+                      ],
+                    }),
+                  },
+                },
+              ],
+            }),
+          });
+        }
+        return originalFetch(url);
+      });
+
+      const request = createRequest('POST', '/api/generate', {
+        prompt: 'フルーツ',
+        token: token,
+      });
+
+      const response = await worker.fetch(request, env);
+      const data = await response.json();
+      
+      expect(data.items[0].tags).toEqual(['Woolies']); // Only first tag
+
+      global.fetch = originalFetch;
+    });
+
+    it('should handle OpenRouter API error', async () => {
+      const originalFetch = global.fetch;
+      global.fetch = vi.fn((url) => {
+        if (url.includes('openrouter.ai')) {
+          return Promise.resolve({
+            ok: false,
+            status: 500,
+            text: async () => 'Internal Server Error',
+          });
+        }
+        return originalFetch(url);
+      });
+
+      const request = createRequest('POST', '/api/generate', {
+        prompt: 'テスト',
+        token: 'error-token-123456',
+      });
+
+      const response = await worker.fetch(request, env);
+      
+      expect(response.status).toBe(502);
+      const data = await response.json();
+      expect(data.error).toContain('AI service error');
+
+      global.fetch = originalFetch;
+    });
+
+    it('should handle invalid JSON response from OpenRouter', async () => {
+      const originalFetch = global.fetch;
+      global.fetch = vi.fn((url) => {
+        if (url.includes('openrouter.ai')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content: 'This is not valid JSON',
+                  },
+                },
+              ],
+            }),
+          });
+        }
+        return originalFetch(url);
+      });
+
+      const request = createRequest('POST', '/api/generate', {
+        prompt: 'テスト',
+        token: 'invalid-json-token-123',
+      });
+
+      const response = await worker.fetch(request, env);
+      
+      expect(response.status).toBe(502);
+      const data = await response.json();
+      expect(data.error).toBeDefined();
+
+      global.fetch = originalFetch;
+    });
+
+    it('should truncate long item labels to 64 characters', async () => {
+      const token = 'long-label-token-123';
+      
+      const originalFetch = global.fetch;
+      global.fetch = vi.fn((url) => {
+        if (url.includes('openrouter.ai')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content: JSON.stringify({
+                      items: [
+                        { 
+                          label: 'これは非常に長いアイテム名で64文字を超えているため切り詰められるべきです。これは非常に長いアイテム名で64文字を超えているため切り詰められるべきです。', 
+                          tags: [], 
+                          checked: false 
+                        },
+                      ],
+                    }),
+                  },
+                },
+              ],
+            }),
+          });
+        }
+        return originalFetch(url);
+      });
+
+      const request = createRequest('POST', '/api/generate', {
+        prompt: 'テスト',
+        token: token,
+      });
+
+      const response = await worker.fetch(request, env);
+      const data = await response.json();
+      
+      expect(data.items[0].label.length).toBeLessThanOrEqual(64);
+
+      global.fetch = originalFetch;
+    });
+
+    it('should increment version when generating list', async () => {
+      const token = 'version-test-token-123';
+      
+      // Create initial list
+      const putReq = createRequest('PUT', `/api/list/${token}`, {
+        title: 'Existing List',
+        items: [],
+        baseVersion: 0,
+        deletedItemIds: [],
+      });
+      await worker.fetch(putReq, env);
+
+      const originalFetch = global.fetch;
+      global.fetch = vi.fn((url) => {
+        if (url.includes('openrouter.ai')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content: JSON.stringify({
+                      items: [{ label: 'テストアイテム', tags: [], checked: false }],
+                    }),
+                  },
+                },
+              ],
+            }),
+          });
+        }
+        return originalFetch(url);
+      });
+
+      const genReq = createRequest('POST', '/api/generate', {
+        prompt: 'テスト',
+        token: token,
+      });
+      await worker.fetch(genReq, env);
+
+      // Check version incremented
+      const getReq = createRequest('GET', `/api/list/${token}`);
+      const getRes = await worker.fetch(getReq, env);
+      const savedData = await getRes.json();
+      
+      expect(savedData.version).toBe(2); // Should increment from 1 to 2
+
+      global.fetch = originalFetch;
+    });
+
+    it('should include CORS headers in generate response', async () => {
+      const originalFetch = global.fetch;
+      global.fetch = vi.fn((url) => {
+        if (url.includes('openrouter.ai')) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              choices: [
+                {
+                  message: {
+                    content: JSON.stringify({
+                      items: [{ label: 'テスト', tags: [], checked: false }],
+                    }),
+                  },
+                },
+              ],
+            }),
+          });
+        }
+        return originalFetch(url);
+      });
+
+      const request = createRequest('POST', '/api/generate', {
+        prompt: 'テスト',
+        token: 'cors-test-token-123',
+      });
+
+      const response = await worker.fetch(request, env);
+      
+      expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+
+      global.fetch = originalFetch;
     });
   });
 });
