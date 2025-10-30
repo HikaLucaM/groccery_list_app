@@ -58,6 +58,28 @@
  * }
  */
 
+// Import catalog API modules
+import { 
+  getAllSpecials, 
+  formatSpecialsForAI, 
+  searchProduct,
+  matchItemsWithCatalog 
+} from './catalog-api.js';
+
+// Import RapidAPI module (official APIs)
+import {
+  getAllSpecialsRapidAPI,
+  searchProductRapidAPI,
+  formatRapidAPISpecialsForAI
+} from './catalog-rapidapi.js';
+
+// Import AI matcher
+import {
+  hybridMatch,
+  enhanceWithCatalogPrices,
+  simpleKeywordMatch
+} from './catalog-ai-matcher.js';
+
 // CORS headers
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -102,6 +124,51 @@ export default {
     // Parse path: /api/generate
     if (url.pathname === '/api/generate' && method === 'POST') {
       return await handleGenerate(request, env);
+    }
+
+    // Parse path: /api/specials (Get current specials from Woolworths & Coles - Mock data)
+    if (url.pathname === '/api/specials' && method === 'GET') {
+      return await handleGetSpecials(request, env);
+    }
+
+    // Parse path: /api/specials-rapidapi (Get specials from RapidAPI)
+    if (url.pathname === '/api/specials-rapidapi' && method === 'GET') {
+      return await handleGetSpecialsRapidAPI(request, env);
+    }
+
+    // Parse path: /api/search (Search for a product - Mock data)
+    if (url.pathname === '/api/search' && method === 'GET') {
+      return await handleSearchProduct(request, env);
+    }
+
+    // Parse path: /api/search-rapidapi (Search using RapidAPI)
+    if (url.pathname === '/api/search-rapidapi' && method === 'GET') {
+      return await handleSearchProductRapidAPI(request, env);
+    }
+
+    // Parse path: /api/match (Match list items with catalog)
+    if (url.pathname === '/api/match' && method === 'POST') {
+      return await handleMatchItems(request, env);
+    }
+
+    // Parse path: /api/ai-match (AI-powered matching - Mock data)
+    if (url.pathname === '/api/ai-match' && method === 'POST') {
+      return await handleAIMatch(request, env);
+    }
+
+    // Parse path: /api/ai-match-rapidapi (AI matching with RapidAPI)
+    if (url.pathname === '/api/ai-match-rapidapi' && method === 'POST') {
+      return await handleAIMatchRapidAPI(request, env);
+    }
+
+    // Parse path: /api/clear-cache (Clear RapidAPI cache - for development)
+    if (url.pathname === '/api/clear-cache' && method === 'POST') {
+      try {
+        await env.SHOPLIST.delete('catalog:specials:rapidapi');
+        return jsonResponse({ status: 'success', message: 'Cache cleared' });
+      } catch (error) {
+        return jsonResponse({ error: 'Failed to clear cache' }, 500);
+      }
     }
 
     // Parse path: /api/list/:token
@@ -502,7 +569,7 @@ function safeParseList(text) {
 /**
  * POST /api/generate
  * Generate shopping list using AI (OpenRouter)
- * free-tier model switch: Updated to use free models with fallback
+ * NOW WITH CATALOG INTEGRATION: AI considers current specials
  */
 async function handleGenerate(request, env) {
   let body;
@@ -512,7 +579,7 @@ async function handleGenerate(request, env) {
     return jsonResponse({ error: 'Invalid JSON' }, 400);
   }
 
-  const { prompt, token } = body;
+  const { prompt, token, useSpecials = false } = body;
 
   // Validate input
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -542,8 +609,27 @@ async function handleGenerate(request, env) {
       return jsonResponse({ error: 'AI service not configured' }, 500);
     }
 
-    // free-tier model switch: Generate with fallbacks
-    const openRouterData = await generateWithFallbacks(prompt, env);
+    // NEW: Fetch specials if requested
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 35000);
+    
+    let enhancedPrompt = prompt;
+    let specialsData = [];
+    
+    try {
+      if (useSpecials) {
+        specialsData = await getAllSpecials(env.SHOPLIST, controller.signal);
+        const specialsText = formatSpecialsForAI(specialsData);
+        enhancedPrompt = `${prompt}\n\n${specialsText}\n\n※上記の特売品を優先的に使用してリストを作成してください。`;
+      }
+    } catch (specialsError) {
+      console.warn('Failed to fetch specials, continuing without:', specialsError);
+    }
+
+    // Generate with fallbacks
+    const openRouterData = await generateWithFallbacks(enhancedPrompt, env);
+    
+    clearTimeout(timeoutId);
     
     // Extract content from response
     if (!openRouterData.choices || !openRouterData.choices[0] || !openRouterData.choices[0].message) {
@@ -553,33 +639,33 @@ async function handleGenerate(request, env) {
 
     const content = openRouterData.choices[0].message.content;
 
-    // free-tier model switch: Use safeParseList for validation
+    // Parse and validate
     const normalizedItems = safeParseList(content);
 
-    // AI Suggestions Modal: Return suggestions without saving to KV
-    // User will confirm before saving
+    // NEW: Enhance with catalog prices if specials were used
+    let enhancedItems = normalizedItems;
+    if (useSpecials && specialsData.length > 0) {
+      try {
+        enhancedItems = await enhanceWithCatalogPrices(
+          normalizedItems, 
+          specialsData, 
+          apiKey
+        );
+        console.log('Enhanced items with catalog prices');
+      } catch (enhanceError) {
+        console.warn('Failed to enhance with catalog:', enhanceError);
+        // Continue with original items
+      }
+    }
+
+    // Return suggestions without saving
     return jsonResponse({
       status: 'ok',
-      suggestions: normalizedItems,
+      suggestions: enhancedItems,
+      specialsUsed: useSpecials && specialsData.length > 0,
+      specialsCount: specialsData.length,
+      pricesIncluded: enhancedItems.some(item => item.price !== undefined),
     });
-
-    /* Original implementation: Save immediately to KV
-    // Build new document
-    const newDoc = {
-      title: existingDoc.title || 'Shopping',
-      items: normalizedItems,
-      version: (existingDoc.version || 0) + 1,
-      updated_at: Date.now(),
-    };
-
-    // Save to KV
-    await env.SHOPLIST.put(kvKey, JSON.stringify(newDoc));
-
-    return jsonResponse({
-      status: 'success',
-      items: normalizedItems,
-    });
-    */
 
   } catch (error) {
     if (error.name === 'AbortError') {
@@ -591,5 +677,337 @@ async function handleGenerate(request, env) {
       error: 'AI生成に失敗しました',
       details: error.message 
     }, 500);
+  }
+}
+
+/**
+ * GET /api/specials
+ * Get current specials from Woolworths & Coles
+ */
+async function handleGetSpecials(request, env) {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    const specials = await getAllSpecials(env.SHOPLIST, controller.signal);
+    
+    clearTimeout(timeoutId);
+    
+    return jsonResponse({
+      status: 'success',
+      specials,
+      count: specials.length,
+      cached: true,
+    });
+  } catch (error) {
+    console.error('Error in handleGetSpecials:', error);
+    return jsonResponse({ error: 'Failed to fetch specials' }, 500);
+  }
+}
+
+/**
+ * GET /api/search?q=product_name
+ * Search for a product across Woolworths & Coles
+ */
+async function handleSearchProduct(request, env) {
+  const url = new URL(request.url);
+  const query = url.searchParams.get('q');
+  
+  if (!query || query.trim().length === 0) {
+    return jsonResponse({ error: 'Missing search query' }, 400);
+  }
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    const results = await searchProduct(query.trim(), controller.signal);
+    
+    clearTimeout(timeoutId);
+    
+    return jsonResponse({
+      status: 'success',
+      query,
+      results,
+      count: results.length,
+    });
+  } catch (error) {
+    console.error('Error in handleSearchProduct:', error);
+    return jsonResponse({ error: 'Search failed' }, 500);
+  }
+}
+
+/**
+ * POST /api/match
+ * Match shopping list items with catalog products
+ * Body: { items: [...] }
+ */
+async function handleMatchItems(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ error: 'Invalid JSON' }, 400);
+  }
+  
+  const { items } = body;
+  
+  if (!Array.isArray(items) || items.length === 0) {
+    return jsonResponse({ error: 'Invalid or empty items array' }, 400);
+  }
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    const matches = await matchItemsWithCatalog(items, controller.signal);
+    
+    clearTimeout(timeoutId);
+    
+    return jsonResponse({
+      status: 'success',
+      matches,
+      totalSavings: calculateTotalSavings(matches),
+    });
+  } catch (error) {
+    console.error('Error in handleMatchItems:', error);
+    return jsonResponse({ error: 'Matching failed' }, 500);
+  }
+}
+
+/**
+ * Helper: Calculate total savings from matched items
+ */
+function calculateTotalSavings(matches) {
+  let savings = 0;
+  
+  for (const match of matches) {
+    if (match.catalogMatch && match.catalogMatch.wasPrice && match.catalogMatch.price) {
+      savings += (match.catalogMatch.wasPrice - match.catalogMatch.price);
+    }
+  }
+  
+  return Math.round(savings * 100) / 100;
+}
+
+/**
+ * POST /api/ai-match
+ * AI-powered matching of user items with catalog
+ * Body: { items: ["牛肉", "牛乳", "パン"] }
+ */
+async function handleAIMatch(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return jsonResponse({ error: 'Invalid JSON' }, 400);
+  }
+  
+  const { items } = body;
+  
+  if (!Array.isArray(items) || items.length === 0) {
+    return jsonResponse({ error: 'Invalid or empty items array' }, 400);
+  }
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    // Get all catalog items
+    const catalogItems = await getAllSpecials(env.SHOPLIST, controller.signal);
+    
+    if (catalogItems.length === 0) {
+      return jsonResponse({ 
+        error: 'Catalog is empty',
+        matches: items.map(item => ({
+          userInput: item,
+          matches: [],
+          bestMatch: null,
+        }))
+      }, 200);
+    }
+    
+    const apiKey = env.OPENROUTER_API_KEY;
+    
+    // Try AI matching
+    const matches = await hybridMatch(items, catalogItems, apiKey);
+    
+    clearTimeout(timeoutId);
+    
+    // Calculate total savings
+    let totalSavings = 0;
+    matches.forEach(match => {
+      if (match.bestMatch && match.bestMatch.wasPrice) {
+        totalSavings += (match.bestMatch.wasPrice - match.bestMatch.price);
+      }
+    });
+    
+    return jsonResponse({
+      status: 'success',
+      matches,
+      catalogSize: catalogItems.length,
+      totalSavings: Math.round(totalSavings * 100) / 100,
+      method: matches[0]?.method || 'ai',
+    });
+  } catch (error) {
+    console.error('Error in handleAIMatch:', error);
+    return jsonResponse({ error: 'AI matching failed', details: error.message }, 500);
+  }
+}
+
+/**
+ * GET /api/specials-rapidapi
+ * Get current specials from RapidAPI (Woolworths & Coles)
+ */
+async function handleGetSpecialsRapidAPI(request, env) {
+  try {
+    const apiKey = env.RAPIDAPI_KEY;
+    if (!apiKey) {
+      return jsonResponse({ 
+        error: 'RapidAPI key not configured',
+        help: 'Run: wrangler secret put RAPIDAPI_KEY'
+      }, 500);
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    
+    const specials = await getAllSpecialsRapidAPI(env.SHOPLIST, apiKey, controller.signal);
+    
+    clearTimeout(timeoutId);
+    
+    return jsonResponse({
+      status: 'success',
+      specials,
+      count: specials.length,
+      source: 'RapidAPI',
+      cached: true,
+    });
+  } catch (error) {
+    console.error('Error in handleGetSpecialsRapidAPI:', error);
+    return jsonResponse({ 
+      error: 'Failed to fetch specials from RapidAPI',
+      details: error.message 
+    }, 500);
+  }
+}
+
+/**
+ * GET /api/search-rapidapi?q=product_name
+ * Search for a product using RapidAPI
+ */
+async function handleSearchProductRapidAPI(request, env) {
+  const url = new URL(request.url);
+  const query = url.searchParams.get('q');
+  
+  if (!query || query.trim().length === 0) {
+    return jsonResponse({ error: 'Missing search query' }, 400);
+  }
+
+  const apiKey = env.RAPIDAPI_KEY;
+  if (!apiKey) {
+    return jsonResponse({ 
+      error: 'RapidAPI key not configured',
+      help: 'Run: wrangler secret put RAPIDAPI_KEY'
+    }, 500);
+  }
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+    
+    const results = await searchProductRapidAPI(query.trim(), apiKey, env.SHOPLIST, controller.signal);
+    
+    clearTimeout(timeoutId);
+    
+    return jsonResponse({
+      status: 'success',
+      query,
+      results,
+      count: results.length,
+      source: 'RapidAPI',
+    });
+  } catch (error) {
+    console.error('Error in handleSearchProductRapidAPI:', error);
+    return jsonResponse({ error: 'Search failed', details: error.message }, 500);
+  }
+}
+
+/**
+ * POST /api/ai-match-rapidapi
+ * AI-powered item matching using RapidAPI catalog
+ */
+async function handleAIMatchRapidAPI(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: 'Invalid JSON body' }, 400);
+  }
+  
+  const { items } = body;
+  
+  if (!Array.isArray(items) || items.length === 0) {
+    return jsonResponse({ error: 'Invalid items array' }, 400);
+  }
+
+  const apiKey = env.RAPIDAPI_KEY;
+  if (!apiKey) {
+    return jsonResponse({ 
+      error: 'RapidAPI key not configured',
+      help: 'Run: wrangler secret put RAPIDAPI_KEY'
+    }, 500);
+  }
+
+  const openRouterKey = env.OPENROUTER_API_KEY;
+  if (!openRouterKey) {
+    return jsonResponse({ 
+      error: 'OpenRouter API key not configured',
+      help: 'Run: wrangler secret put OPENROUTER_API_KEY'
+    }, 500);
+  }
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 40000);
+    
+    // Get all catalog items from RapidAPI
+    const catalogItems = await getAllSpecialsRapidAPI(env.SHOPLIST, apiKey, controller.signal);
+    
+    if (catalogItems.length === 0) {
+      return jsonResponse({ 
+        error: 'Catalog is empty',
+        matches: items.map(item => ({
+          userInput: item,
+          matches: [],
+          bestMatch: null,
+        }))
+      }, 200);
+    }
+    
+    // Try AI matching
+    const matches = await hybridMatch(items, catalogItems, openRouterKey);
+    
+    clearTimeout(timeoutId);
+    
+    // Calculate total savings
+    let totalSavings = 0;
+    matches.forEach(match => {
+      if (match.bestMatch && match.bestMatch.wasPrice) {
+        totalSavings += (match.bestMatch.wasPrice - match.bestMatch.price);
+      }
+    });
+    
+    return jsonResponse({
+      status: 'success',
+      matches,
+      catalogSize: catalogItems.length,
+      totalSavings: Math.round(totalSavings * 100) / 100,
+      method: matches[0]?.method || 'ai',
+      source: 'RapidAPI',
+    });
+  } catch (error) {
+    console.error('Error in handleAIMatchRapidAPI:', error);
+    return jsonResponse({ error: 'AI matching failed', details: error.message }, 500);
   }
 }

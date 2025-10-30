@@ -57,37 +57,156 @@
       flex-wrap: wrap;
     }
     
-    /* AI生成ボタン（入力バー内） */
+    /* AI生成ボタン（入力バー内） - 削除予定 */
     .ai-generate-btn {
-      padding: 14px 12px;
+      display: none; /* FABに移行 */
+    }
+    
+    /* Floating Action Button (FAB) - メインAIボタン */
+    .fab-container {
+      position: fixed;
+      bottom: 90px;
+      right: 20px;
+      z-index: 1000;
+    }
+    
+    .fab-main {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
       background: linear-gradient(135deg, #10b981 0%, #059669 100%);
       color: white;
       border: none;
-      border-radius: 12px;
+      font-size: 28px;
       cursor: pointer;
-      font-size: 15px;
-      font-weight: 700;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    
+    .fab-main:hover {
+      transform: scale(1.1);
+      box-shadow: 0 12px 32px rgba(16, 185, 129, 0.5);
+    }
+    
+    .fab-main:active {
+      transform: scale(0.95);
+    }
+    
+    .fab-main.active {
+      transform: rotate(45deg);
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    }
+    
+    /* FABサブメニュー */
+    .fab-menu {
+      position: absolute;
+      bottom: 74px;
+      right: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .fab-menu.active {
+      opacity: 1;
+      pointer-events: all;
+      bottom: 80px;
+    }
+    
+    .fab-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: white;
+      border: none;
+      border-radius: 28px;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+      transition: all 0.2s ease;
+      font-size: 14px;
+      font-weight: 600;
       white-space: nowrap;
-      min-height: 50px;
-      min-width: 60px;
-      transition: all 0.3s ease;
-      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
-      flex-shrink: 0;
+      transform: translateY(10px) scale(0.8);
+      opacity: 0;
     }
     
-    .ai-generate-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+    .fab-menu.active .fab-menu-item {
+      transform: translateY(0) scale(1);
+      opacity: 1;
     }
     
-    .ai-generate-btn:active {
-      transform: scale(0.96);
+    .fab-menu.active .fab-menu-item:nth-child(1) {
+      transition-delay: 0.05s;
     }
     
-    .ai-generate-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-      transform: none;
+    .fab-menu.active .fab-menu-item:nth-child(2) {
+      transition-delay: 0.1s;
+    }
+    
+    .fab-menu.active .fab-menu-item:nth-child(3) {
+      transition-delay: 0.15s;
+    }
+    
+    .fab-menu.active .fab-menu-item:nth-child(4) {
+      transition-delay: 0.2s;
+    }
+    
+    .fab-menu-item:hover {
+      transform: translateX(-8px) scale(1.05);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+    }
+    
+    .fab-menu-item:active {
+      transform: translateX(-8px) scale(0.98);
+    }
+    
+    .fab-menu-item .icon {
+      font-size: 20px;
+      width: 24px;
+      text-align: center;
+    }
+    
+    .fab-menu-item.generate {
+      color: #10b981;
+    }
+    
+    .fab-menu-item.match {
+      color: #f59e0b;
+    }
+    
+    .fab-menu-item.specials {
+      color: #ef4444;
+    }
+    
+    .fab-menu-item.search {
+      color: #3b82f6;
+    }
+    
+    /* FABオーバーレイ */
+    .fab-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      z-index: 999;
+    }
+    
+    .fab-overlay.active {
+      opacity: 1;
+      pointer-events: all;
     }
     
     /* 共有ボタン */
@@ -943,10 +1062,24 @@
       }
       
       .ai-generate-btn {
-        padding: 12px 10px;
-        font-size: 14px;
-        min-height: 46px;
-        min-width: 50px;
+        display: none; /* FAB使用のため非表示 */
+      }
+      
+      /* FABモバイル調整 */
+      .fab-container {
+        bottom: 80px;
+        right: 16px;
+      }
+      
+      .fab-main {
+        width: 56px;
+        height: 56px;
+        font-size: 24px;
+      }
+      
+      .fab-menu-item {
+        font-size: 13px;
+        padding: 10px 14px;
       }
       
       .modal-content {
@@ -1120,8 +1253,33 @@
     <select id="tagSelect" aria-label="タグを選択">
       <option value="">タグなし</option>
     </select>
-    <button id="aiGenerateBtn" class="ai-generate-btn" aria-label="AIでリストを作成" title="AIでリストを作成">🤖 AI</button>
     <button id="addBtn" aria-label="追加">追加</button>
+  </div>
+
+  <!-- Floating Action Button (FAB) - AI機能メニュー -->
+  <div class="fab-overlay" id="fabOverlay"></div>
+  <div class="fab-container">
+    <div class="fab-menu" id="fabMenu">
+      <button class="fab-menu-item generate" id="fabGenerateBtn" data-action="generate">
+        <span class="icon">✨</span>
+        <span>AIでリスト生成</span>
+      </button>
+      <button class="fab-menu-item match" id="fabMatchBtn" data-action="match">
+        <span class="icon">🎯</span>
+        <span>AIで価格マッチ</span>
+      </button>
+      <button class="fab-menu-item specials" id="fabSpecialsBtn" data-action="specials">
+        <span class="icon">🔥</span>
+        <span>今週の特売</span>
+      </button>
+      <button class="fab-menu-item search" id="fabSearchBtn" data-action="search">
+        <span class="icon">🔍</span>
+        <span>商品検索</span>
+      </button>
+    </div>
+    <button class="fab-main" id="fabMain" aria-label="AI機能メニュー">
+      🤖
+    </button>
   </div>
 
   <!-- トースト通知 -->
@@ -1252,7 +1410,49 @@
 
       // Event listeners
       document.getElementById('addBtn').addEventListener('click', handleAdd);
-      document.getElementById('aiGenerateBtn').addEventListener('click', handleAIGenerate);
+      
+      // FAB menu toggle
+      const fabMain = document.getElementById('fabMain');
+      const fabMenu = document.getElementById('fabMenu');
+      const fabOverlay = document.getElementById('fabOverlay');
+      
+      function toggleFabMenu() {
+        const isActive = fabMenu.classList.contains('active');
+        fabMenu.classList.toggle('active');
+        fabMain.classList.toggle('active');
+        fabOverlay.classList.toggle('active');
+      }
+      
+      function closeFabMenu() {
+        fabMenu.classList.remove('active');
+        fabMain.classList.remove('active');
+        fabOverlay.classList.remove('active');
+      }
+      
+      fabMain.addEventListener('click', toggleFabMenu);
+      fabOverlay.addEventListener('click', closeFabMenu);
+      
+      // FAB menu item actions
+      document.getElementById('fabGenerateBtn').addEventListener('click', () => {
+        closeFabMenu();
+        handleAIGenerate();
+      });
+      
+      document.getElementById('fabMatchBtn').addEventListener('click', () => {
+        closeFabMenu();
+        handleAIMatch();
+      });
+      
+      document.getElementById('fabSpecialsBtn').addEventListener('click', () => {
+        closeFabMenu();
+        handleSpecials();
+      });
+      
+      document.getElementById('fabSearchBtn').addEventListener('click', () => {
+        closeFabMenu();
+        handleSearch();
+      });
+      
       document.getElementById('newItemInput').addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
           e.preventDefault();
@@ -1616,14 +1816,11 @@
         return;
       }
       
-      const aiBtn = document.getElementById('aiGenerateBtn');
       const loadingModal = document.getElementById('aiLoadingModal');
-      const originalText = aiBtn.textContent;
       
       try {
-        // Show loading modal and disable button
+        // Show loading modal
         loadingModal.classList.add('show');
-        aiBtn.disabled = true;
         aiGenerateCooldown = true;
         
         console.log('[DEBUG] Starting AI generation request...');
@@ -1725,12 +1922,118 @@
         loadingModal.classList.remove('show');
         alert(`エラー: ${errorMessage}`);
       } finally {
-        // Hide loading modal and re-enable button after delay
+        // Hide loading modal and reset cooldown
         loadingModal.classList.remove('show');
         setTimeout(() => {
-          aiBtn.disabled = false;
           aiGenerateCooldown = false;
         }, 5000); // 5 second cooldown for free-tier rate limits
+      }
+    }
+
+    /**
+     * Handle AI Price Match
+     * Match current list items with catalog prices
+     */
+    async function handleAIMatch() {
+      if (itemsArray.length === 0) {
+        showToast('リストにアイテムを追加してから価格マッチを試してください');
+        return;
+      }
+      
+      const itemNames = itemsArray.map(item => item.label);
+      
+      try {
+        showToast('AI価格マッチング中...', false, 3000);
+        
+        const response = await fetch(`${API_BASE}/api/ai-match-rapidapi`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: itemNames }),
+        });
+        
+        if (!response.ok) {
+          throw new Error('価格マッチに失敗しました');
+        }
+        
+        const result = await response.json();
+        showToast(`✅ ${result.matches.length}件マッチ完了！節約額: $${result.totalSavings || 0}`, false, 5000);
+        console.log('AI Match result:', result);
+        
+        // TODO: 価格情報をUIに表示
+      } catch (error) {
+        console.error('Error in AI match:', error);
+        showToast('価格マッチングに失敗しました', true);
+      }
+    }
+
+    /**
+     * Handle Specials View
+     * Show current week's special offers
+     */
+    async function handleSpecials() {
+      try {
+        showToast('特売情報を取得中...', false, 2000);
+        
+        const response = await fetch(`${API_BASE}/api/specials-rapidapi`);
+        
+        if (!response.ok) {
+          throw new Error('特売情報の取得に失敗しました');
+        }
+        
+        const result = await response.json();
+        
+        // Show specials in an alert for now (TODO: create dedicated modal)
+        const specialsText = result.specials.slice(0, 10).map(s => 
+          `${s.name}: $${s.price} (was $${s.wasPrice}) - ${s.discount}% OFF`
+        ).join('\n');
+        
+        alert(`🔥 今週の特売トップ10:\n\n${specialsText}\n\n合計: ${result.count}件の特売`);
+        
+        console.log('Specials:', result);
+      } catch (error) {
+        console.error('Error fetching specials:', error);
+        showToast('特売情報の取得に失敗しました', true);
+      }
+    }
+
+    /**
+     * Handle Product Search
+     * Search catalog for specific products
+     */
+    async function handleSearch() {
+      const query = window.prompt('商品名を入力してください（例: チョコレート、牛乳）');
+      
+      if (!query || query.trim().length === 0) {
+        return;
+      }
+      
+      try {
+        showToast('商品を検索中...', false, 2000);
+        
+        const response = await fetch(`${API_BASE}/api/search-rapidapi?q=${encodeURIComponent(query.trim())}`);
+        
+        if (!response.ok) {
+          throw new Error('商品検索に失敗しました');
+        }
+        
+        const result = await response.json();
+        
+        if (result.count === 0) {
+          showToast('該当する商品が見つかりませんでした');
+          return;
+        }
+        
+        // Show search results in an alert for now (TODO: create dedicated modal)
+        const resultsText = result.results.slice(0, 10).map(p => 
+          `${p.name}: $${p.price}${p.wasPrice ? ` (was $${p.wasPrice})` : ''} - ${p.store}`
+        ).join('\n');
+        
+        alert(`🔍 検索結果 (${result.count}件):\n\n${resultsText}`);
+        
+        console.log('Search results:', result);
+      } catch (error) {
+        console.error('Error searching products:', error);
+        showToast('商品検索に失敗しました', true);
       }
     }
 

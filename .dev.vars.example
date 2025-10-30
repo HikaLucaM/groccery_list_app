@@ -1,0 +1,11 @@
+# ローカル開発用の環境変数
+# このファイルは .gitignore に追加済み - コミットしないでください!
+
+# RapidAPI Key
+# 取得方法: https://rapidapi.com/ にサインアップし、
+# Coles Product Price API と Woolworths Products API を Subscribe
+RAPIDAPI_KEY=your-rapidapi-key-here
+
+# OpenRouter API Key
+# 取得方法: https://openrouter.ai/ にサインアップ
+OPENROUTER_API_KEY=your-openrouter-key-here
