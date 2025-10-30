@@ -2257,10 +2257,38 @@
         }
         
         const result = await response.json();
-        showToast(`✅ ${result.matches.length}件マッチ完了！節約額: $${result.totalSavings || 0}`, false, 5000);
-        console.log('AI Match result:', result);
         
-        // TODO: 価格情報をUIに表示
+        // Update items with price information
+        let updateCount = 0;
+        result.matches.forEach(match => {
+          if (match.bestMatch) {
+            // Find the item in our list
+            const item = itemsArray.find(i => 
+              i.label.toLowerCase().includes(match.userInput.toLowerCase()) ||
+              match.userInput.toLowerCase().includes(i.label.toLowerCase())
+            );
+            
+            if (item) {
+              // Update the item with price info
+              item.price = match.bestMatch.price;
+              item.wasPrice = match.bestMatch.wasPrice;
+              item.discount = match.bestMatch.discount;
+              item.store = match.bestMatch.store;
+              item.productUrl = match.bestMatch.url;
+              updateCount++;
+            }
+          }
+        });
+        
+        if (updateCount > 0) {
+          // Save updated items to server
+          await saveItems();
+          // Re-render to show prices
+          await fetchAndRender();
+        }
+        
+        showToast(`✅ ${updateCount}件に価格情報を追加！節約額: $${result.totalSavings.toFixed(2)}`, false, 5000);
+        console.log('AI Match result:', result);
       } catch (error) {
         console.error('Error in AI match:', error);
         showToast('価格マッチングに失敗しました', true);
@@ -2319,9 +2347,6 @@
         }
         
         showCatalogModal(`🔍 "${query}" の検索結果`, result.results, result.count);
-
-        
-        alert(`🔍 検索結果 (${result.count}件):\n\n${resultsText}`);
         
         console.log('Search results:', result);
       } catch (error) {
