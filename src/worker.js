@@ -405,7 +405,67 @@ function normalizeItem(item, fallbackPos = 0) {
  * Helper: Call OpenRouter API with a specific model
  * Strict JSON enforcement: Updated prompt to guarantee JSON-only output
  */
-async function callOpenRouter(model, prompt, apiKey, signal) {
+async function callOpenRouter(model, prompt, apiKey, signal, language = 'ja') {
+  // Define system prompts based on language
+  const systemPrompts = {
+    ja: `あなたはオーストラリアのスーパーマーケット向け買い物リスト作成AIです。
+
+【ユーザーのリクエスト】
+${prompt}
+
+【タスク】
+上記のリクエストに基づいて、最適な買い物リストを作成してください。
+
+【重要な指示】
+1. **具体的な商品名**: 
+   - 曖昧な表現は避ける (例: ❌「野菜」→ ✅「トマト」「玉ねぎ」「にんじん」)
+   - オーストラリアで一般的な商品名を使用
+   - **日本語のみで出力** (英語の併記は不要: ❌「牛肉 (Beef)」→ ✅「牛肉」)
+   
+2. **料理の場合は全材料を含める**:
+   - 料理名が含まれる場合、その料理を作るために必要な材料を漏れなくリストアップ
+   - 基本調味料(塩、こしょう、油など)も忘れずに含める
+   
+3. **数量の明示**:
+   - 必要に応じて数量や単位を含める (例: 「牛肉 500g」「卵 6個」「牛乳 1L」)
+   
+4. **店舗タグの選択**:
+   - 各商品に最適な店舗を1つ選ぶ
+   - 選択肢: Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart
+   - 生鮮食品 → Woolies/Coles/IGA
+   - アジア食材 → Asian Grocery
+   - 日用品 → Chemist/Kmart`,
+    en: `You are an AI assistant for creating shopping lists for Australian supermarkets.
+
+【User Request】
+${prompt}
+
+【Task】
+Create an optimal shopping list based on the user's request above.
+
+【Important Instructions】
+1. **Specific product names**: 
+   - Avoid vague expressions (e.g., ❌ "vegetables" → ✅ "tomatoes", "onions", "carrots")
+   - Use product names commonly found in Australia
+   - **Output in English only** (no Japanese translation needed: ❌ "Beef (牛肉)" → ✅ "Beef")
+   
+2. **Include all ingredients for dishes**:
+   - If a dish name is mentioned, list all ingredients needed to make it
+   - Include basic seasonings (salt, pepper, oil, etc.)
+   
+3. **Specify quantities**:
+   - Include quantities and units when appropriate (e.g., "Beef 500g", "Eggs 6 pack", "Milk 1L")
+   
+4. **Store tag selection**:
+   - Assign the most appropriate store to each product
+   - Options: Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart
+   - Fresh produce → Woolies/Coles/IGA
+   - Asian ingredients → Asian Grocery
+   - Household items → Chemist/Kmart`
+  };
+
+  const selectedPrompt = systemPrompts[language] || systemPrompts.ja;
+  
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -422,32 +482,7 @@ async function callOpenRouter(model, prompt, apiKey, signal) {
       messages: [
         {
           role: 'user',
-          content: `あなたはオーストラリアのスーパーマーケット向け買い物リスト作成AIです。
-
-【ユーザーのリクエスト】
-${prompt}
-
-【タスク】
-上記のリクエストに基づいて、最適な買い物リストを作成してください。
-
-【重要な指示】
-1. **具体的な商品名**: 
-   - 曖昧な表現は避ける (例: ❌「野菜」→ ✅「トマト」「玉ねぎ」「にんじん」)
-   - オーストラリアで一般的な商品名を使用
-   
-2. **料理の場合は全材料を含める**:
-   - 料理名が含まれる場合、その料理を作るために必要な材料を漏れなくリストアップ
-   - 基本調味料(塩、こしょう、油など)も忘れずに含める
-   
-3. **数量の明示**:
-   - 必要に応じて数量や単位を含める (例: 「牛肉 500g」「卵 6個」「牛乳 1L」)
-   
-4. **店舗タグの選択**:
-   - 各商品に最適な店舗を1つ選ぶ
-   - 選択肢: Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart
-   - 生鮮食品 → Woolies/Coles/IGA
-   - アジア食材 → Asian Grocery
-   - 日用品 → Chemist/Kmart
+          content: `${selectedPrompt}
 
 【出力形式】
 以下のJSON形式で出力してください。説明文やマークダウンは不要です:
@@ -468,7 +503,7 @@ ${prompt}
  * Helper: Generate with fallback models
  * free-tier model switch
  */
-async function generateWithFallbacks(prompt, env) {
+async function generateWithFallbacks(prompt, env, language = 'ja') {
   // free-tier model switch: Default to free model
   const DEFAULT_MODEL = env.MODEL ?? 'deepseek/deepseek-chat-v3.1:free';
   
@@ -486,7 +521,7 @@ async function generateWithFallbacks(prompt, env) {
       try {
         console.log('Trying model:', model);
         
-        const response = await callOpenRouter(model.trim(), prompt, apiKey, controller.signal);
+        const response = await callOpenRouter(model.trim(), prompt, apiKey, controller.signal, language);
         
         // Success case
         if (response.status === 200) {
@@ -606,7 +641,7 @@ async function handleGenerate(request, env) {
     return jsonResponse({ error: 'Invalid JSON' }, 400);
   }
 
-  const { prompt, token, useSpecials = false } = body;
+  const { prompt, token, useSpecials = false, language = 'ja' } = body;
 
   // Validate input
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -621,6 +656,9 @@ async function handleGenerate(request, env) {
   if (!TOKEN_PATTERN.test(token)) {
     return jsonResponse({ error: 'Invalid token format' }, 400);
   }
+  
+  // Validate language
+  const validatedLanguage = (language === 'ja' || language === 'en') ? language : 'ja';
 
   // Fetch existing list document
   const kvKey = `list:${token}`;
@@ -653,8 +691,8 @@ async function handleGenerate(request, env) {
       console.warn('Failed to fetch specials, continuing without:', specialsError);
     }
 
-    // Generate with fallbacks
-    const openRouterData = await generateWithFallbacks(enhancedPrompt, env);
+    // Generate with fallbacks - pass language parameter
+    const openRouterData = await generateWithFallbacks(enhancedPrompt, env, validatedLanguage);
     
     clearTimeout(timeoutId);
     
