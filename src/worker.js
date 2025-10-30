@@ -538,14 +538,14 @@ ${prompt}
 
 /**
  * Helper: Generate with fallback models and API keys
- * Optimized: Stops early on 404, tries second API key on 429/402
+ * Optimized: Uses only reliable free models
  */
 async function generateWithFallbacks(prompt, env) {
-  // free-tier model switch: Default to free model
-  const DEFAULT_MODEL = env.MODEL ?? 'deepseek/deepseek-chat-v3.1:free';
+  // Use reliable free models only (excluding frequently failing models like DeepSeek)
+  const DEFAULT_MODEL = env.MODEL ?? 'meta-llama/llama-3.1-8b-instruct:free';
   
-  // free-tier model switch: Fallback models
-  const FALLBACK_MODELS = (env.MODEL_FALLBACKS ?? 'mistralai/mistral-7b-instruct:free,openrouter/auto').split(',');
+  // Fallback to other working free models
+  const FALLBACK_MODELS = (env.MODEL_FALLBACKS ?? 'mistralai/mistral-7b-instruct:free,google/gemma-2-9b-it:free').split(',');
   
   const models = [DEFAULT_MODEL, ...FALLBACK_MODELS];
   
@@ -588,10 +588,18 @@ async function generateWithFallbacks(prompt, env) {
             errorData = { error: { message: 'Unknown error', code: response.status } };
           }
           
-          // 404: Privacy/policy issue - STOP immediately (no point trying other models/keys)
+          // 404: Privacy/policy issue or model not found - Try next model or key
           if (response.status === 404) {
-            console.error(`⚠ Model ${model} blocked by privacy policy (404). Check https://openrouter.ai/settings/privacy`);
-            throw new Error(`OpenRouter privacy policy blocking free models: ${errorData.error?.message || 'Check settings'}`);
+            console.error(`⚠ Model ${model} not accessible (404) on key ${keyIndex + 1}. Reason: ${errorData.error?.message || 'Unknown'}`);
+            lastError = `Model ${model} not accessible: ${errorData.error?.message || 'Check privacy settings'}`;
+            
+            // Try next key if available
+            if (keyIndex + 1 < apiKeys.length) {
+              console.log(`Trying next API key for this model...`);
+              break; // Break to try next key
+            }
+            // Otherwise, try next model
+            continue;
           }
           
           // 429: Rate limit - Try next key if available, otherwise stop
@@ -636,19 +644,25 @@ async function generateWithFallbacks(prompt, env) {
           continue;
           
         } catch (modelError) {
-          // If error thrown above (404/rate limit on all keys), re-throw immediately
-          if (modelError.message?.includes('privacy policy') || modelError.message?.includes('All API keys rate limited')) {
-            throw modelError;
-          }
-          console.error(`⚠ Exception with model ${model}:`, modelError.message);
+          // Network or fetch errors - try next model/key
+          console.error(`⚠ Exception with model ${model} on key ${keyIndex + 1}:`, modelError.message);
           lastError = modelError.message;
-          continue;
+          
+          // Try next key if available
+          if (keyIndex + 1 < apiKeys.length) {
+            break; // Break to try next key
+          }
+          continue; // Otherwise try next model
         }
       }
     }
     
     // All models and keys failed
-    throw new Error(`All models and API keys failed. Last error: ${lastError || 'Unknown'}`);
+    const errorMsg = `All models and API keys failed. Last error: ${lastError || 'Unknown'}. 
+Tried ${apiKeys.length} API key(s) and ${models.length} model(s). 
+If you see 404 errors, check privacy settings: https://openrouter.ai/settings/privacy`;
+    console.error(errorMsg);
+    throw new Error(errorMsg);
     
   } finally {
     clearTimeout(timeoutId);
@@ -1250,8 +1264,8 @@ Examples: "1,5,12" or "none" if no matches.
 NO explanations, NO other text.`;
 
     // Try with fallback models and API keys
-    const DEFAULT_MODEL = env.MODEL ?? 'deepseek/deepseek-chat-v3.1:free';
-    const FALLBACK_MODELS = ['mistralai/mistral-7b-instruct:free', 'meta-llama/llama-3.1-8b-instruct:free'];
+    const DEFAULT_MODEL = env.MODEL ?? 'meta-llama/llama-3.1-8b-instruct:free';
+    const FALLBACK_MODELS = ['mistralai/mistral-7b-instruct:free', 'google/gemma-2-9b-it:free'];
     const models = [DEFAULT_MODEL, ...FALLBACK_MODELS];
     
     // NEW: Support for two API keys
