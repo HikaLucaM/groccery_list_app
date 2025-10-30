@@ -2290,12 +2290,14 @@
      * Match current list items with catalog prices
      */
     async function handleAIMatch() {
-      if (itemsArray.length === 0) {
+      const currentItems = Array.isArray(listData?.items) ? listData.items : [];
+
+      if (currentItems.length === 0) {
         showToast('リストにアイテムを追加してから価格マッチを試してください');
         return;
       }
-      
-      const itemNames = itemsArray.map(item => item.label);
+
+      const itemNames = currentItems.map(item => item.label);
       
       try {
         showToast('AI価格マッチング中...', false, 3000);
@@ -2317,7 +2319,7 @@
         result.matches.forEach(match => {
           if (match.bestMatch) {
             // Find the item in our list
-            const item = itemsArray.find(i => 
+            const item = currentItems.find(i => 
               i.label.toLowerCase().includes(match.userInput.toLowerCase()) ||
               match.userInput.toLowerCase().includes(i.label.toLowerCase())
             );
@@ -2737,6 +2739,7 @@
       const catalogCount = document.getElementById('catalogCount');
       const filterBtn = document.getElementById('catalogFilterBtn');
       const showAllBtn = document.getElementById('catalogShowAllBtn');
+      const currentItems = Array.isArray(listData?.items) ? listData.items : [];
       
       // Validate products array
       if (!products || !Array.isArray(products)) {
@@ -2753,7 +2756,7 @@
       catalogCount.textContent = `${totalCount}件`;
       
       // Show/hide filter buttons based on enableFiltering and user's list
-      if (enableFiltering && itemsArray.length > 0) {
+      if (enableFiltering && currentItems.length > 0) {
         filterBtn.style.display = 'flex';
         showAllBtn.style.display = 'flex';
         filterBtn.classList.remove('active');
@@ -2838,7 +2841,9 @@
      * Filter specials by user's list using AI
      */
     async function handleFilterSpecials() {
-      if (itemsArray.length === 0) {
+      const currentItems = Array.isArray(listData?.items) ? listData.items : [];
+
+      if (currentItems.length === 0) {
         showToast('リストにアイテムを追加してください', false, 2000);
         return;
       }
@@ -2853,7 +2858,7 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
-            items: itemsArray.map(item => item.label),
+            items: currentItems.map(item => item.label),
             specials: allSpecials
           }),
         });
