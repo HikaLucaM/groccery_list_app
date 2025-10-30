@@ -949,6 +949,290 @@
     
     .ai-loading-dots {
       display: inline-block;
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+    
+    @keyframes dots {
+      0%, 20% { content: ''; }
+      40% { content: '.'; }
+      60% { content: '..'; }
+      80%, 100% { content: '...'; }
+    }
+    
+    /* 特売・検索結果モーダル */
+    .catalog-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      z-index: 2100;
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease;
+    }
+    
+    .catalog-modal.show {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .catalog-modal-content {
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      max-width: 600px;
+      width: 100%;
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .catalog-modal-header {
+      padding: 24px;
+      border-bottom: 2px solid #f3f4f6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .catalog-modal-header h2 {
+      font-size: 22px;
+      font-weight: 800;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .catalog-modal-close {
+      background: #f3f4f6;
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      transition: all 0.2s ease;
+    }
+    
+    .catalog-modal-close:hover {
+      background: #e5e7eb;
+      transform: rotate(90deg);
+    }
+    
+    .catalog-modal-body {
+      padding: 16px 24px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    
+    .catalog-item {
+      background: #f9fafb;
+      border: 2px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+      transition: all 0.2s ease;
+    }
+    
+    .catalog-item:hover {
+      border-color: #10b981;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    }
+    
+    .catalog-item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 8px;
+    }
+    
+    .catalog-item-name {
+      font-weight: 700;
+      font-size: 16px;
+      color: #1a1a1a;
+      flex: 1;
+      margin-right: 12px;
+      line-height: 1.4;
+    }
+    
+    .catalog-item-price {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+    }
+    
+    .catalog-item-current-price {
+      font-size: 24px;
+      font-weight: 800;
+      color: #10b981;
+      line-height: 1;
+    }
+    
+    .catalog-item-old-price {
+      font-size: 14px;
+      color: #9ca3af;
+      text-decoration: line-through;
+      font-weight: 600;
+    }
+    
+    .catalog-item-discount {
+      display: inline-block;
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 13px;
+      font-weight: 800;
+      margin-top: 4px;
+    }
+    
+    .catalog-item-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+      margin-bottom: 12px;
+    }
+    
+    .catalog-item-store {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .catalog-item-brand {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #e5e7eb;
+      color: #4b5563;
+    }
+    
+    .catalog-item-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    
+    .catalog-add-btn {
+      flex: 1;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 14px;
+    }
+    
+    .catalog-add-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    
+    .catalog-add-btn:active {
+      transform: scale(0.98);
+    }
+    
+    .catalog-add-btn.added {
+      background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+      cursor: not-allowed;
+    }
+    
+    .catalog-link-btn {
+      padding: 10px 16px;
+      background: white;
+      color: #667eea;
+      border: 2px solid #667eea;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 14px;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .catalog-link-btn:hover {
+      background: #667eea;
+      color: white;
+    }
+    
+    .catalog-modal-footer {
+      padding: 16px 24px;
+      border-top: 2px solid #f3f4f6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .catalog-count {
+      font-size: 14px;
+      color: #6b7280;
+      font-weight: 600;
+    }
+    
+    .catalog-close-btn {
+      padding: 12px 24px;
+      background: #f3f4f6;
+      color: #1a1a1a;
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .catalog-close-btn:hover {
+      background: #e5e7eb;
+    }
+    
+    /* リストアイテムの価格表示 */
+    .item-price-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+      font-size: 13px;
+    }
+    
+    .item-price-badge {
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      color: white;
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 12px;
+    }
+    
+    .item-discount-badge {
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: white;
+      padding: 3px 8px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 11px;
+    }
+    
+    .ai-loading-dots {
+      display: inline-block;
     }
     
     .ai-loading-dots::after {
@@ -1332,6 +1616,23 @@
       <div class="modal-actions">
         <button class="modal-btn-secondary" id="cancelSuggestions">キャンセル</button>
         <button class="modal-btn-primary" id="addSelected">選択した項目を追加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 特売・検索結果モーダル -->
+  <div class="catalog-modal" id="catalogModal">
+    <div class="catalog-modal-content">
+      <div class="catalog-modal-header">
+        <h2 id="catalogModalTitle">🔥 今週の特売</h2>
+        <button class="catalog-modal-close" id="catalogModalClose">×</button>
+      </div>
+      <div class="catalog-modal-body" id="catalogModalBody">
+        <!-- 動的に商品が挿入される -->
+      </div>
+      <div class="catalog-modal-footer">
+        <span class="catalog-count" id="catalogCount">0件</span>
+        <button class="catalog-close-btn" id="catalogCloseBtn">閉じる</button>
       </div>
     </div>
   </div>
@@ -1981,13 +2282,7 @@
         }
         
         const result = await response.json();
-        
-        // Show specials in an alert for now (TODO: create dedicated modal)
-        const specialsText = result.specials.slice(0, 10).map(s => 
-          `${s.name}: $${s.price} (was $${s.wasPrice}) - ${s.discount}% OFF`
-        ).join('\n');
-        
-        alert(`🔥 今週の特売トップ10:\n\n${specialsText}\n\n合計: ${result.count}件の特売`);
+        showCatalogModal('🔥 今週の特売', result.specials, result.count);
         
         console.log('Specials:', result);
       } catch (error) {
@@ -2023,10 +2318,8 @@
           return;
         }
         
-        // Show search results in an alert for now (TODO: create dedicated modal)
-        const resultsText = result.results.slice(0, 10).map(p => 
-          `${p.name}: $${p.price}${p.wasPrice ? ` (was $${p.wasPrice})` : ''} - ${p.store}`
-        ).join('\n');
+        showCatalogModal(`🔍 "${query}" の検索結果`, result.results, result.count);
+
         
         alert(`🔍 検索結果 (${result.count}件):\n\n${resultsText}`);
         
@@ -2223,12 +2516,22 @@
         const tagBadges = tags.map(tag => 
           `<span class="tag-badge ${getTagClass(tag)}">${escapeHtml(tag)}</span>`
         ).join('');
+        
+        // Price info display
+        let priceInfo = '';
+        if (item.price !== undefined && item.price > 0) {
+          priceInfo = `<div class="item-price-info">
+            <span class="item-price-badge">$${item.price.toFixed(2)}</span>
+            ${item.discount ? `<span class="item-discount-badge">${item.discount}% OFF</span>` : ''}
+          </div>`;
+        }
 
         return `
         <li class="item" onclick="showEditModal('${item.id}')">
           <span class="item-label ${item.checked ? 'checked' : ''}">
             <span class="item-label-text">${escapeHtml(item.label)}</span>
             ${tagBadges ? `<div class="item-tags">${tagBadges}</div>` : ''}
+            ${priceInfo}
           </span>
           <div class="item-checkbox-wrapper">
             <input 
@@ -2312,7 +2615,7 @@
       await copyShareUrl();
     }
 
-    function showToast(message, isError = false) {
+    function showToast(message, isError = false, duration = 2000) {
       const toast = document.getElementById('toast');
       toast.textContent = message;
       toast.style.background = isError ? '#dc3545' : '#333';
@@ -2320,8 +2623,128 @@
       
       setTimeout(() => {
         toast.classList.remove('show');
-      }, 2000);
+      }, duration);
     }
+
+    // ============================================================
+    // Catalog Modal Functions
+    // ============================================================
+    
+    /**
+     * Show catalog modal with products
+     * @param {string} title - Modal title
+     * @param {Array} products - Array of product objects
+     * @param {number} totalCount - Total count of products
+     */
+    function showCatalogModal(title, products, totalCount) {
+      const modal = document.getElementById('catalogModal');
+      const modalTitle = document.getElementById('catalogModalTitle');
+      const modalBody = document.getElementById('catalogModalBody');
+      const catalogCount = document.getElementById('catalogCount');
+      
+      modalTitle.textContent = title;
+      catalogCount.textContent = `${totalCount}件`;
+      
+      // Clear previous content
+      modalBody.innerHTML = '';
+      
+      // Add products (limit to 50 for performance)
+      const displayProducts = products.slice(0, 50);
+      
+      displayProducts.forEach(product => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'catalog-item';
+        
+        const hasDiscount = product.wasPrice && product.price < product.wasPrice;
+        
+        itemDiv.innerHTML = `
+          <div class="catalog-item-header">
+            <div class="catalog-item-name">${escapeHtml(product.name)}</div>
+            <div class="catalog-item-price">
+              <div class="catalog-item-current-price">$${product.price.toFixed(2)}</div>
+              ${hasDiscount ? `
+                <div class="catalog-item-old-price">$${product.wasPrice.toFixed(2)}</div>
+                <div class="catalog-item-discount">${product.discount}% OFF</div>
+              ` : ''}
+            </div>
+          </div>
+          <div class="catalog-item-meta">
+            <span class="catalog-item-store">${escapeHtml(product.store)}</span>
+            ${product.brand ? `<span class="catalog-item-brand">${escapeHtml(product.brand)}</span>` : ''}
+          </div>
+          <div class="catalog-item-actions">
+            <button class="catalog-add-btn" data-name="${escapeHtml(product.name)}" data-store="${escapeHtml(product.store)}" data-price="${product.price}">
+              + リストに追加
+            </button>
+            ${product.url ? `<a href="${escapeHtml(product.url)}" target="_blank" class="catalog-link-btn">商品ページ</a>` : ''}
+          </div>
+        `;
+        
+        modalBody.appendChild(itemDiv);
+      });
+      
+      // Add event listeners to add buttons
+      modalBody.querySelectorAll('.catalog-add-btn').forEach(btn => {
+        btn.addEventListener('click', handleCatalogAddItem);
+      });
+      
+      // Show modal
+      modal.classList.add('show');
+    }
+    
+    /**
+     * Hide catalog modal
+     */
+    function hideCatalogModal() {
+      const modal = document.getElementById('catalogModal');
+      modal.classList.remove('show');
+    }
+    
+    /**
+     * Handle adding item from catalog to list
+     */
+    async function handleCatalogAddItem(e) {
+      const btn = e.target;
+      const itemName = btn.dataset.name;
+      const store = btn.dataset.store;
+      const price = parseFloat(btn.dataset.price);
+      
+      if (btn.classList.contains('added')) {
+        return; // Already added
+      }
+      
+      try {
+        // Add to list
+        await addItem(itemName, store);
+        
+        // Update button state
+        btn.textContent = '✓ 追加済み';
+        btn.classList.add('added');
+        
+        showToast(`"${itemName}" をリストに追加しました`);
+      } catch (error) {
+        console.error('Error adding item:', error);
+        showToast('追加に失敗しました', true);
+      }
+    }
+    
+    /**
+     * Escape HTML to prevent XSS
+     */
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+    
+    // Catalog modal event listeners
+    document.getElementById('catalogModalClose').addEventListener('click', hideCatalogModal);
+    document.getElementById('catalogCloseBtn').addEventListener('click', hideCatalogModal);
+    document.getElementById('catalogModal').addEventListener('click', (e) => {
+      if (e.target.id === 'catalogModal') {
+        hideCatalogModal();
+      }
+    });
   </script>
 </body>
 </html>
