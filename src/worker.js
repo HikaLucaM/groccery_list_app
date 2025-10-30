@@ -448,7 +448,7 @@ Use Japanese for labels. Use these store tags: Woolies, Coles, ALDI, IGA, Asian 
  */
 async function generateWithFallbacks(prompt, env) {
   // free-tier model switch: Default to free model
-  const DEFAULT_MODEL = env.MODEL ?? 'meta-llama/llama-3-8b-instruct:free';
+  const DEFAULT_MODEL = env.MODEL ?? 'deepseek/deepseek-chat-v3.1:free';
   
   // free-tier model switch: Fallback models
   const FALLBACK_MODELS = (env.MODEL_FALLBACKS ?? 'mistralai/mistral-7b-instruct:free,openrouter/auto').split(',');
@@ -1075,7 +1075,7 @@ If no relevant items, return: "none"`;
         'HTTP-Referer': 'https://shared-shopping-list.grocery-shopping-list.workers.dev',
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.2-3b-instruct:free',
+        model: 'deepseek/deepseek-chat-v3.1:free',
         messages: [
           {
             role: 'user',

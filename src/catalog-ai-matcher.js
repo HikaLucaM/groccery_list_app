@@ -93,7 +93,7 @@ ${userItemsList}
         'X-Title': 'Shared Shopping List - AI Matcher',
       },
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct:free',
+        model: 'deepseek/deepseek-chat-v3.1:free',
         temperature: 0.3,
         max_tokens: 1000,
         response_format: { type: "json_object" },
