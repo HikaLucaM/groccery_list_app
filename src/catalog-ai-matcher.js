@@ -96,15 +96,10 @@ ${userItemsList}
         model: 'deepseek/deepseek-chat-v3.1:free',
         temperature: 0.3,
         max_tokens: 1000,
-        response_format: { type: "json_object" },
         messages: [
           {
-            role: 'system',
-            content: 'You are a product matching assistant. Output only valid JSON.'
-          },
-          {
             role: 'user',
-            content: prompt
+            content: prompt + '\n\nIMPORTANT: You MUST respond with ONLY valid JSON. Do not include any explanations, markdown, or text outside the JSON object.'
           },
         ],
       }),

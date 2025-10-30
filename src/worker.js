@@ -419,21 +419,24 @@ async function callOpenRouter(model, prompt, apiKey, signal) {
       temperature: 0.2,
       top_p: 0.9,
       max_tokens: 800,
-      response_format: { type: "json_object" },
       messages: [
         {
-          role: 'system',
-          content: `You are a JSON generator that outputs only valid JSON. 
-Do not include explanations, markdown, or text outside JSON.
-If you cannot comply, output {"error":"invalid request"}.
-Always follow the user's schema exactly.`
-        },
-        {
           role: 'user',
-          content: `${prompt}。次のスキーマに完全準拠し、minified JSONのみを出力すること:
-{"items":[{"label":"string","tags":["string"],"checked":false}]}
+          content: `あなたは買い物リスト作成の専門家です。ユーザーのリクエストに基づいて、必要な食材や商品のリストを作成してください。
 
-Use Japanese for labels. Use these store tags: Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart.`
+ユーザーのリクエスト:
+${prompt}
+
+指示:
+1. リクエストに最適な食材・商品を具体的にリストアップ
+2. 料理名が含まれる場合は、その料理を作るために必要な材料をすべて含める
+3. 数量や詳細が指定されていない場合は、一般的な量を想定
+4. 各アイテムには適切な店舗タグを1つ付ける(Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart)
+
+出力形式(必ずこのJSON形式で):
+{"items":[{"label":"商品名(日本語)","tags":["店舗名"],"checked":false}]}
+
+重要: 有効なJSONのみを出力してください。説明文やマークダウンは不要です。`
         },
       ],
     }),
@@ -1050,52 +1053,75 @@ async function handleFilterSpecials(request, env) {
     // Limit to first 100 specials to avoid token limits
     const specialsToAnalyze = specials.slice(0, 100);
     
-    const prompt = `You are a shopping assistant. Given a user's shopping list and available special offers, identify which specials are most relevant to what they're shopping for.
+    const prompt = `You are a shopping assistant analyzing special offers.
 
-User's Shopping List:
+USER'S SHOPPING LIST:
 ${items.map((item, i) => `${i + 1}. ${item}`).join('\n')}
 
-Special Offers (${specialsToAnalyze.length} total):
+SPECIAL OFFERS (${specialsToAnalyze.length} total):
 ${specialsToAnalyze.map((s, i) => `${i + 1}. ${s.name} - $${s.price} (was $${s.wasPrice}) at ${s.store}`).join('\n')}
 
-Task: Return ONLY the numbers (comma-separated) of specials that are relevant to the user's shopping list. Consider:
-- Direct matches (e.g., "milk" matches "Full Cream Milk")
-- Category matches (e.g., "meat" matches "Beef Steak", "Chicken Breast")
-- Common substitutes (e.g., "butter" matches "Margarine")
-- Complementary items (e.g., "pasta" matches "Pasta Sauce")
+TASK: Identify which special offers match items in the shopping list.
+Consider:
+- Direct matches (e.g., "milk" → "Full Cream Milk")
+- Category matches (e.g., "meat" → "Beef Steak", "Chicken")
+- Substitutes (e.g., "butter" → "Margarine")
+- Complementary items (e.g., "pasta" → "Pasta Sauce")
 
-Return format: Just numbers separated by commas, e.g., "1,5,12,23"
-If no relevant items, return: "none"`;
+OUTPUT FORMAT: Return ONLY comma-separated numbers of relevant specials.
+Examples: "1,5,12" or "none" if no matches.
+NO explanations, NO other text.`;
 
-    const aiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${openRouterKey}`,
-        'HTTP-Referer': 'https://shared-shopping-list.grocery-shopping-list.workers.dev',
-      },
-      body: JSON.stringify({
-        model: 'deepseek/deepseek-chat-v3.1:free',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 500,
-        temperature: 0.3,
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      throw new Error(`OpenRouter API failed: ${errorText}`);
-    }
-
-    const data = await aiResponse.json();
-    const aiText = data.choices[0].message.content.trim();
+    // Try with fallback models
+    const DEFAULT_MODEL = env.MODEL ?? 'deepseek/deepseek-chat-v3.1:free';
+    const FALLBACK_MODELS = ['mistralai/mistral-7b-instruct:free', 'meta-llama/llama-3.1-8b-instruct:free'];
+    const models = [DEFAULT_MODEL, ...FALLBACK_MODELS];
     
-    console.log('AI filtering response:', aiText);
+    let aiText = null;
+    
+    for (const model of models) {
+      try {
+        console.log('Trying filter model:', model);
+        
+        const aiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${openRouterKey}`,
+            'HTTP-Referer': 'https://shared-shopping-list.grocery-shopping-list.workers.dev',
+            'X-Title': 'Shared Shopping List - Filter',
+          },
+          body: JSON.stringify({
+            model: model.trim(),
+            messages: [
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            max_tokens: 500,
+            temperature: 0.3,
+          }),
+        });
+
+        if (aiResponse.ok) {
+          const data = await aiResponse.json();
+          aiText = data.choices[0].message.content.trim();
+          console.log('AI filtering response:', aiText);
+          break; // Success, exit loop
+        } else {
+          console.log(`Model ${model} failed with status ${aiResponse.status}`);
+          continue;
+        }
+      } catch (modelError) {
+        console.error(`Error with model ${model}:`, modelError);
+        continue;
+      }
+    }
+    
+    if (!aiText) {
+      throw new Error('All models failed for filtering');
+    }
     
     if (aiText.toLowerCase() === 'none') {
       return jsonResponse({
