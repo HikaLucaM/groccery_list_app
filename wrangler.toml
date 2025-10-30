@@ -2,7 +2,7 @@ name = "shared-shopping-list"
 main = "src/worker.js"
 compatibility_date = "2024-10-07"
 
-# Assets (static files)
+# Assets (static files) - Workers only
 [assets]
 directory = "./public"
 binding = "ASSETS"
