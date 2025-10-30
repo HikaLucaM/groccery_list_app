@@ -537,8 +537,8 @@ ${prompt}
 }
 
 /**
- * Helper: Generate with fallback models
- * Optimized: Stops early on 404/429 to avoid wasting API calls
+ * Helper: Generate with fallback models and API keys
+ * Optimized: Stops early on 404, tries second API key on 429/402
  */
 async function generateWithFallbacks(prompt, env) {
   // free-tier model switch: Default to free model
@@ -548,7 +548,12 @@ async function generateWithFallbacks(prompt, env) {
   const FALLBACK_MODELS = (env.MODEL_FALLBACKS ?? 'mistralai/mistral-7b-instruct:free,openrouter/auto').split(',');
   
   const models = [DEFAULT_MODEL, ...FALLBACK_MODELS];
-  const apiKey = env.OPENROUTER_API_KEY;
+  
+  // NEW: Support for two API keys
+  const apiKeys = [env.OPENROUTER_API_KEY];
+  if (env.OPENROUTER_API_KEY_2) {
+    apiKeys.push(env.OPENROUTER_API_KEY_2);
+  }
   
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
@@ -556,73 +561,94 @@ async function generateWithFallbacks(prompt, env) {
   let lastError = null;
   
   try {
-    for (const model of models) {
-      try {
-        console.log('Trying model:', model);
-        
-        const response = await callOpenRouter(model.trim(), prompt, apiKey, controller.signal);
-        
-        // Success case
-        if (response.status === 200) {
-          const data = await response.json();
-          console.log(`✓ Model ${model} succeeded`);
-          return data;
-        }
-        
-        // Parse error details
-        let errorData;
+    // Try each API key
+    for (let keyIndex = 0; keyIndex < apiKeys.length; keyIndex++) {
+      const apiKey = apiKeys[keyIndex];
+      console.log(`Using API key ${keyIndex + 1}/${apiKeys.length}`);
+      
+      // Try each model with current API key
+      for (const model of models) {
         try {
-          errorData = await response.json();
-        } catch {
-          errorData = { error: { message: 'Unknown error', code: response.status } };
-        }
-        
-        // 404: Privacy/policy issue - STOP immediately (no point trying other models)
-        if (response.status === 404) {
-          console.error(`⚠ Model ${model} blocked by privacy policy (404). Check https://openrouter.ai/settings/privacy`);
-          throw new Error(`OpenRouter privacy policy blocking free models: ${errorData.error?.message || 'Check settings'}`);
-        }
-        
-        // 429: Rate limit - STOP immediately (all models share same limit)
-        if (response.status === 429) {
-          const resetTime = errorData.error?.metadata?.headers?.['X-RateLimit-Reset'];
-          const resetDate = resetTime ? new Date(parseInt(resetTime)).toLocaleString('ja-JP') : 'unknown';
-          console.error(`⚠ Rate limit exceeded (429). Resets at: ${resetDate}`);
-          throw new Error(`OpenRouter rate limit exceeded. Try again after ${resetDate}`);
-        }
-        
-        // 402: Payment required → try next model
-        if (response.status === 402) {
-          console.log(`⚠ Model ${model} requires payment (402), trying next...`);
-          lastError = `Payment required for ${model}`;
+          console.log(`Trying model: ${model} with key ${keyIndex + 1}`);
+          
+          const response = await callOpenRouter(model.trim(), prompt, apiKey, controller.signal);
+          
+          // Success case
+          if (response.status === 200) {
+            const data = await response.json();
+            console.log(`✓ Model ${model} succeeded with key ${keyIndex + 1}`);
+            return data;
+          }
+          
+          // Parse error details
+          let errorData;
+          try {
+            errorData = await response.json();
+          } catch {
+            errorData = { error: { message: 'Unknown error', code: response.status } };
+          }
+          
+          // 404: Privacy/policy issue - STOP immediately (no point trying other models/keys)
+          if (response.status === 404) {
+            console.error(`⚠ Model ${model} blocked by privacy policy (404). Check https://openrouter.ai/settings/privacy`);
+            throw new Error(`OpenRouter privacy policy blocking free models: ${errorData.error?.message || 'Check settings'}`);
+          }
+          
+          // 429: Rate limit - Try next key if available, otherwise stop
+          if (response.status === 429) {
+            const resetTime = errorData.error?.metadata?.headers?.['X-RateLimit-Reset'];
+            const resetDate = resetTime ? new Date(parseInt(resetTime)).toLocaleString('ja-JP') : 'unknown';
+            console.error(`⚠ Rate limit exceeded (429) on key ${keyIndex + 1}. Resets at: ${resetDate}`);
+            
+            if (keyIndex + 1 < apiKeys.length) {
+              console.log(`Switching to API key ${keyIndex + 2}...`);
+              break; // Break from models loop to try next key
+            } else {
+              throw new Error(`All API keys rate limited. Try again after ${resetDate}`);
+            }
+          }
+          
+          // 402: Payment required → Try next key if available, otherwise try next model
+          if (response.status === 402) {
+            console.log(`⚠ Model ${model} requires payment (402) on key ${keyIndex + 1}`);
+            
+            if (keyIndex + 1 < apiKeys.length) {
+              console.log(`Will try API key ${keyIndex + 2} for this model...`);
+              lastError = `Payment required for ${model} on key ${keyIndex + 1}`;
+              break; // Break from models loop to try next key
+            } else {
+              console.log(`No more API keys, trying next model...`);
+              lastError = `Payment required for ${model} on all keys`;
+              continue;
+            }
+          }
+          
+          // 5xx: Server error → try next model
+          if (response.status >= 500) {
+            console.log(`⚠ Server error ${response.status} for ${model}, trying next...`);
+            lastError = `Server error ${response.status}`;
+            continue;
+          }
+          
+          // Other errors → try next model
+          console.log(`⚠ Model ${model} failed with status ${response.status}: ${errorData.error?.message || 'Unknown'}`);
+          lastError = errorData.error?.message || `HTTP ${response.status}`;
+          continue;
+          
+        } catch (modelError) {
+          // If error thrown above (404/rate limit on all keys), re-throw immediately
+          if (modelError.message?.includes('privacy policy') || modelError.message?.includes('All API keys rate limited')) {
+            throw modelError;
+          }
+          console.error(`⚠ Exception with model ${model}:`, modelError.message);
+          lastError = modelError.message;
           continue;
         }
-        
-        // 5xx: Server error → try next model
-        if (response.status >= 500) {
-          console.log(`⚠ Server error ${response.status} for ${model}, trying next...`);
-          lastError = `Server error ${response.status}`;
-          continue;
-        }
-        
-        // Other errors → try next model
-        console.log(`⚠ Model ${model} failed with status ${response.status}: ${errorData.error?.message || 'Unknown'}`);
-        lastError = errorData.error?.message || `HTTP ${response.status}`;
-        continue;
-        
-      } catch (modelError) {
-        // If error thrown above (404/429), re-throw immediately
-        if (modelError.message?.includes('privacy policy') || modelError.message?.includes('rate limit')) {
-          throw modelError;
-        }
-        console.error(`⚠ Exception with model ${model}:`, modelError.message);
-        lastError = modelError.message;
-        continue;
       }
     }
     
-    // All models failed
-    throw new Error(`All models failed. Last error: ${lastError || 'Unknown'}`);
+    // All models and keys failed
+    throw new Error(`All models and API keys failed. Last error: ${lastError || 'Unknown'}`);
     
   } finally {
     clearTimeout(timeoutId);
@@ -787,10 +813,16 @@ async function handleGenerate(request, env) {
     let enhancedItems = normalizedItems;
     if (useSpecials && specialsData.length > 0) {
       try {
+        // Build API keys array for fallback
+        const apiKeys = [apiKey];
+        if (env.OPENROUTER_API_KEY_2) {
+          apiKeys.push(env.OPENROUTER_API_KEY_2);
+        }
+        
         enhancedItems = await enhanceWithCatalogPrices(
           normalizedItems, 
           specialsData, 
-          apiKey
+          apiKeys
         );
         console.log('Enhanced items with catalog prices');
       } catch (enhanceError) {
@@ -970,8 +1002,14 @@ async function handleAIMatch(request, env) {
     
     const apiKey = env.OPENROUTER_API_KEY;
     
+    // Build API keys array for fallback
+    const apiKeys = [apiKey];
+    if (env.OPENROUTER_API_KEY_2) {
+      apiKeys.push(env.OPENROUTER_API_KEY_2);
+    }
+    
     // Try AI matching
-    const matches = await hybridMatch(items, catalogItems, apiKey);
+    const matches = await hybridMatch(items, catalogItems, apiKeys);
     
     clearTimeout(timeoutId);
     
@@ -1126,8 +1164,14 @@ async function handleAIMatchRapidAPI(request, env) {
       }, 200);
     }
     
+    // Build API keys array for fallback
+    const openRouterKeys = [openRouterKey];
+    if (env.OPENROUTER_API_KEY_2) {
+      openRouterKeys.push(env.OPENROUTER_API_KEY_2);
+    }
+    
     // Try AI matching
-    const matches = await hybridMatch(items, catalogItems, openRouterKey);
+    const matches = await hybridMatch(items, catalogItems, openRouterKeys);
     
     clearTimeout(timeoutId);
     
@@ -1205,50 +1249,71 @@ OUTPUT FORMAT: Return ONLY comma-separated numbers of relevant specials.
 Examples: "1,5,12" or "none" if no matches.
 NO explanations, NO other text.`;
 
-    // Try with fallback models
+    // Try with fallback models and API keys
     const DEFAULT_MODEL = env.MODEL ?? 'deepseek/deepseek-chat-v3.1:free';
     const FALLBACK_MODELS = ['mistralai/mistral-7b-instruct:free', 'meta-llama/llama-3.1-8b-instruct:free'];
     const models = [DEFAULT_MODEL, ...FALLBACK_MODELS];
     
+    // NEW: Support for two API keys
+    const apiKeys = [env.OPENROUTER_API_KEY];
+    if (env.OPENROUTER_API_KEY_2) {
+      apiKeys.push(env.OPENROUTER_API_KEY_2);
+    }
+    
     let aiText = null;
     
-    for (const model of models) {
-      try {
-        console.log('Trying filter model:', model);
-        
-        const aiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${openRouterKey}`,
-            'HTTP-Referer': 'https://shared-shopping-list.grocery-shopping-list.workers.dev',
-            'X-Title': 'Shared Shopping List - Filter',
-          },
-          body: JSON.stringify({
-            model: model.trim(),
-            messages: [
-              {
-                role: 'user',
-                content: prompt
-              }
-            ],
-            max_tokens: 500,
-            temperature: 0.3,
-          }),
-        });
+    // Try each API key
+    for (let keyIndex = 0; keyIndex < apiKeys.length && !aiText; keyIndex++) {
+      const currentKey = apiKeys[keyIndex];
+      console.log(`Trying filter with API key ${keyIndex + 1}/${apiKeys.length}`);
+      
+      // Try each model with current API key
+      for (const model of models) {
+        try {
+          console.log(`Trying filter model: ${model} with key ${keyIndex + 1}`);
+          
+          const aiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${currentKey}`,
+              'HTTP-Referer': 'https://shared-shopping-list.grocery-shopping-list.workers.dev',
+              'X-Title': 'Shared Shopping List - Filter',
+            },
+            body: JSON.stringify({
+              model: model.trim(),
+              messages: [
+                {
+                  role: 'user',
+                  content: prompt
+                }
+              ],
+              max_tokens: 500,
+              temperature: 0.3,
+            }),
+          });
 
-        if (aiResponse.ok) {
-          const data = await aiResponse.json();
-          aiText = data.choices[0].message.content.trim();
-          console.log('AI filtering response:', aiText);
-          break; // Success, exit loop
-        } else {
-          console.log(`Model ${model} failed with status ${aiResponse.status}`);
+          if (aiResponse.ok) {
+            const data = await aiResponse.json();
+            aiText = data.choices[0].message.content.trim();
+            console.log(`✓ AI filtering succeeded with model ${model} and key ${keyIndex + 1}`);
+            break; // Success, exit models loop
+          } else {
+            // Check if we should try next key
+            if (aiResponse.status === 429 || aiResponse.status === 402) {
+              console.log(`Model ${model} got status ${aiResponse.status} on key ${keyIndex + 1}`);
+              if (keyIndex + 1 < apiKeys.length) {
+                console.log(`Breaking to try next API key...`);
+                break; // Break to try next key
+              }
+            }
+            console.log(`Model ${model} failed with status ${aiResponse.status} on key ${keyIndex + 1}`);
+            continue;
+          }
+        } catch (modelError) {
+          console.error(`Error with model ${model} on key ${keyIndex + 1}:`, modelError);
           continue;
         }
-      } catch (modelError) {
-        console.error(`Error with model ${model}:`, modelError);
-        continue;
       }
     }
     

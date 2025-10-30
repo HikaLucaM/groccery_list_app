@@ -41,7 +41,7 @@ function buildCatalogPrompt(catalogItems) {
  * 
  * @param {Array} userItems - ユーザーのショッピングリストアイテム ['牛肉', '牛乳', 'パン']
  * @param {Array} catalogItems - カタログ商品リスト
- * @param {string} apiKey - OpenRouter API Key
+ * @param {string|Array} apiKey - OpenRouter API Key (string or array of keys for fallback)
  * @returns {Promise<Array>} - マッチング結果
  */
 export async function matchItemsWithAI(userItems, catalogItems, apiKey) {
@@ -57,6 +57,9 @@ export async function matchItemsWithAI(userItems, catalogItems, apiKey) {
       bestMatch: null,
     }));
   }
+  
+  // Support both single key and array of keys
+  const apiKeys = Array.isArray(apiKey) ? apiKey : [apiKey];
   
   const catalogPrompt = buildCatalogPrompt(catalogItems);
   
@@ -83,77 +86,104 @@ ${userItemsList}
   ]
 }`;
 
-  try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'HTTP-Referer': 'https://shared-shopping-list.grocery-shopping-list.workers.dev',
-        'X-Title': 'Shared Shopping List - AI Matcher',
-      },
-      body: JSON.stringify({
-        model: 'deepseek/deepseek-chat-v3.1:free',
-        temperature: 0.3,
-        max_tokens: 1000,
-        messages: [
-          {
-            role: 'user',
-            content: prompt + '\n\nIMPORTANT: You MUST respond with ONLY valid JSON. Do not include any explanations, markdown, or text outside the JSON object.'
-          },
-        ],
-      }),
-    });
+  // Try each API key
+  for (let keyIndex = 0; keyIndex < apiKeys.length; keyIndex++) {
+    const currentKey = apiKeys[keyIndex];
+    console.log(`AI matching: trying API key ${keyIndex + 1}/${apiKeys.length}`);
     
-    if (!response.ok) {
-      console.error('AI matching API failed:', response.status);
-      return userItems.map(item => ({
-        userInput: item,
-        matches: [],
-        bestMatch: null,
-      }));
-    }
-    
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    
-    if (!content) {
-      console.error('No content in AI response');
-      return userItems.map(item => ({
-        userInput: item,
-        matches: [],
-        bestMatch: null,
-      }));
-    }
-    
-    // Parse AI response
-    const parsed = JSON.parse(content);
-    
-    // Map catalog numbers to actual products
-    const results = parsed.matches.map(match => {
-      const matchedProducts = match.catalogNumbers
-        .map(num => catalogItems[num - 1]) // 1-indexed to 0-indexed
-        .filter(Boolean);
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${currentKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://shared-shopping-list.grocery-shopping-list.workers.dev',
+          'X-Title': 'Shared Shopping List - AI Matcher',
+        },
+        body: JSON.stringify({
+          model: 'deepseek/deepseek-chat-v3.1:free',
+          temperature: 0.3,
+          max_tokens: 1000,
+          messages: [
+            {
+              role: 'user',
+              content: prompt + '\n\nIMPORTANT: You MUST respond with ONLY valid JSON. Do not include any explanations, markdown, or text outside the JSON object.'
+            },
+          ],
+        }),
+      });
       
-      return {
-        userInput: match.userItem,
-        matches: matchedProducts,
-        bestMatch: matchedProducts[0] || null,
-        reason: match.reason,
-      };
-    });
-    
-    return results;
-    
-  } catch (error) {
-    console.error('Error in AI matching:', error);
-    return userItems.map(item => ({
-      userInput: item,
-      matches: [],
-      bestMatch: null,
-      error: error.message,
-    }));
+      if (response.ok) {
+        const data = await response.json();
+        const content = data.choices?.[0]?.message?.content;
+        
+        if (!content) {
+          console.error('No content in AI response');
+          continue;
+        }
+        
+        // Parse AI response
+        const parsed = JSON.parse(content);
+        
+        // Map catalog numbers to actual products
+        const results = parsed.matches.map(match => {
+          const matchedProducts = match.catalogNumbers
+            .map(num => catalogItems[num - 1]) // 1-indexed to 0-indexed
+            .filter(Boolean);
+          
+          return {
+            userInput: match.userItem,
+            matches: matchedProducts,
+            bestMatch: matchedProducts[0] || null,
+            reason: match.reason,
+          };
+        });
+        
+        console.log(`✓ AI matching succeeded with key ${keyIndex + 1}`);
+        return results;
+        
+      } else {
+        // Try next key on rate limit or payment required
+        if ((response.status === 429 || response.status === 402) && keyIndex + 1 < apiKeys.length) {
+          console.log(`API key ${keyIndex + 1} failed with status ${response.status}, trying next key...`);
+          continue;
+        }
+        
+        console.error('AI matching API failed:', response.status);
+        if (keyIndex + 1 >= apiKeys.length) {
+          // Last key failed, return empty results
+          return userItems.map(item => ({
+            userInput: item,
+            matches: [],
+            bestMatch: null,
+          }));
+        }
+      }
+      
+    } catch (error) {
+      console.error(`Error with API key ${keyIndex + 1}:`, error);
+      
+      // Try next key if available
+      if (keyIndex + 1 < apiKeys.length) {
+        continue;
+      }
+      
+      // Last key, return error results
+      return userItems.map(item => ({
+        userInput: item,
+        matches: [],
+        bestMatch: null,
+        error: error.message,
+      }));
+    }
   }
+  
+  // All keys failed
+  return userItems.map(item => ({
+    userInput: item,
+    matches: [],
+    bestMatch: null,
+  }));
 }
 
 /**

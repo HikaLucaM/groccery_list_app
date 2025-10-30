@@ -52,12 +52,21 @@ Wrangler CLIを使ってシークレットを設定:
 wrangler secret put RAPIDAPI_KEY
 # プロンプトが表示されたら、キーを入力
 
-# OpenRouter APIキーを設定
+# OpenRouter APIキー (1つ目) を設定
 wrangler secret put OPENROUTER_API_KEY
 # プロンプトが表示されたら、キーを入力
+
+# OpenRouter APIキー (2つ目 - オプション) を設定
+# ※1つ目のAPIキーがレート制限または上限に達した場合、自動的に2つ目にフォールバックします
+wrangler secret put OPENROUTER_API_KEY_2
+# プロンプトが表示されたら、2つ目のキーを入力
 ```
 
 これらのシークレットは暗号化されて保存され、コードには含まれません。
+
+**Note:** `OPENROUTER_API_KEY_2` はオプショナルです。設定することで、1つ目のAPIキーが以下の状態になった時に自動的にフォールバックします:
+- レート制限 (429エラー)
+- フリークレジット上限 (402エラー)
 
 ### Cloudflare Pages (本番環境)
 
