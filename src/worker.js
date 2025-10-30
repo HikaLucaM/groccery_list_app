@@ -416,27 +416,46 @@ async function callOpenRouter(model, prompt, apiKey, signal) {
     },
     body: JSON.stringify({
       model,
-      temperature: 0.2,
-      top_p: 0.9,
-      max_tokens: 800,
+      temperature: 0.3,
+      top_p: 0.95,
+      max_tokens: 1000,
       messages: [
         {
           role: 'user',
-          content: `あなたは買い物リスト作成の専門家です。ユーザーのリクエストに基づいて、必要な食材や商品のリストを作成してください。
+          content: `あなたはオーストラリアのスーパーマーケット向け買い物リスト作成AIです。
 
-ユーザーのリクエスト:
+【ユーザーのリクエスト】
 ${prompt}
 
-指示:
-1. リクエストに最適な食材・商品を具体的にリストアップ
-2. 料理名が含まれる場合は、その料理を作るために必要な材料をすべて含める
-3. 数量や詳細が指定されていない場合は、一般的な量を想定
-4. 各アイテムには適切な店舗タグを1つ付ける(Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart)
+【タスク】
+上記のリクエストに基づいて、最適な買い物リストを作成してください。
 
-出力形式(必ずこのJSON形式で):
-{"items":[{"label":"商品名(日本語)","tags":["店舗名"],"checked":false}]}
+【重要な指示】
+1. **具体的な商品名**: 
+   - 曖昧な表現は避ける (例: ❌「野菜」→ ✅「トマト」「玉ねぎ」「にんじん」)
+   - オーストラリアで一般的な商品名を使用
+   
+2. **料理の場合は全材料を含める**:
+   - 料理名が含まれる場合、その料理を作るために必要な材料を漏れなくリストアップ
+   - 基本調味料(塩、こしょう、油など)も忘れずに含める
+   
+3. **数量の明示**:
+   - 必要に応じて数量や単位を含める (例: 「牛肉 500g」「卵 6個」「牛乳 1L」)
+   
+4. **店舗タグの選択**:
+   - 各商品に最適な店舗を1つ選ぶ
+   - 選択肢: Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart
+   - 生鮮食品 → Woolies/Coles/IGA
+   - アジア食材 → Asian Grocery
+   - 日用品 → Chemist/Kmart
 
-重要: 有効なJSONのみを出力してください。説明文やマークダウンは不要です。`
+【出力形式】
+以下のJSON形式で出力してください。説明文やマークダウンは不要です:
+
+{"items":[{"label":"商品名(日本語または英語)","tags":["店舗名"],"checked":false}]}
+
+例:
+{"items":[{"label":"牛肉 500g","tags":["Woolies"],"checked":false},{"label":"玉ねぎ 2個","tags":["Coles"],"checked":false}]}`
         },
       ],
     }),

@@ -2850,9 +2850,17 @@
       
       const filterBtn = document.getElementById('catalogFilterBtn');
       const showAllBtn = document.getElementById('catalogShowAllBtn');
+      const modalBody = document.getElementById('catalogModalBody');
       
       try {
-        showToast('AIで関連商品を絞り込み中...', false, 2000);
+        // Show loading state
+        filterBtn.disabled = true;
+        filterBtn.innerHTML = '<span class="icon">⏳</span><span>AI処理中...</span>';
+        
+        // Show loading in modal body
+        modalBody.innerHTML = '<div style="text-align:center;padding:40px;color:#666;"><div style="font-size:32px;margin-bottom:16px;">🤖</div><div>AIがあなたのリストを分析中...</div></div>';
+        
+        showToast('🤖 AIで関連商品を絞り込み中...', false, 2000);
         
         const filterResponse = await fetch(`${API_BASE}/api/filter-specials`, {
           method: 'POST',
@@ -2875,22 +2883,31 @@
           
           // Update button states
           filterBtn.classList.add('active');
+          filterBtn.disabled = false;
+          filterBtn.innerHTML = '<span class="icon">✨</span><span>マイリストで絞り込み</span>';
           showAllBtn.classList.remove('active');
           
           // Update title
           const modalTitle = document.getElementById('catalogModalTitle');
-          modalTitle.textContent = `🔥 あなたのリストに関連する特売`;
+          modalTitle.textContent = `✨ あなたのリストに関連する特売 (${filterResult.count}件)`;
           
           // Render filtered products
           renderCatalogProducts(filteredSpecials, filterResult.count);
           
-          showToast(`✨ ${filterResult.count}件の関連商品を表示中`, false, 3000);
+          showToast(`✅ ${filterResult.count}件の関連商品を表示中`, false, 3000);
           console.log('Filtered specials:', filterResult);
         } else {
+          // No matches found
+          filterBtn.disabled = false;
+          filterBtn.innerHTML = '<span class="icon">✨</span><span>マイリストで絞り込み</span>';
+          modalBody.innerHTML = '<div style="text-align:center;padding:40px;color:#666;"><div style="font-size:48px;margin-bottom:16px;">😔</div><div style="font-size:18px;font-weight:600;margin-bottom:8px;">関連商品が見つかりませんでした</div><div style="font-size:14px;">別のアイテムをリストに追加してみてください</div></div>';
           showToast('関連商品が見つかりませんでした', false, 3000);
         }
       } catch (error) {
         console.error('AI filtering failed:', error);
+        filterBtn.disabled = false;
+        filterBtn.innerHTML = '<span class="icon">✨</span><span>マイリストで絞り込み</span>';
+        modalBody.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;"><div style="font-size:48px;margin-bottom:16px;">⚠️</div><div style="font-size:18px;font-weight:600;margin-bottom:8px;">AI絞り込みに失敗しました</div><div style="font-size:14px;">もう一度お試しください</div></div>';
         showToast('AI絞り込みに失敗しました', true);
       }
     }
@@ -2940,16 +2957,33 @@
       }
       
       try {
-        // Add to list
-        await addItem(itemName, store);
+        // Create new item
+        const newItem = {
+          id: crypto.randomUUID(),
+          label: itemName,
+          checked: false,
+          tags: store ? [store] : [],
+          pos: listData.items.length,
+          updated_at: Date.now(),
+        };
+
+        listData.items.push(newItem);
         
-        // Update button state
+        // Update button state immediately
         btn.textContent = '✓ 追加済み';
         btn.classList.add('added');
+        btn.disabled = true;
+        
+        // Save and render
+        render();
+        await saveList();
         
         showToast(`"${itemName}" をリストに追加しました`);
       } catch (error) {
         console.error('Error adding item:', error);
+        btn.textContent = '+ リストに追加';
+        btn.classList.remove('added');
+        btn.disabled = false;
         showToast('追加に失敗しました', true);
       }
     }
