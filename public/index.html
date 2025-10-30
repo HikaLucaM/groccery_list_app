@@ -1027,6 +1027,50 @@
       background: #e5e7eb;
       transform: rotate(90deg);
     }
+
+    .catalog-modal-toolbar {
+      padding: 12px 24px;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      gap: 12px;
+      background: #f9fafb;
+    }
+
+    .catalog-filter-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: 2px solid #e5e7eb;
+      border-radius: 12px;
+      background: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.2s ease;
+    }
+
+    .catalog-filter-btn:hover {
+      border-color: #10b981;
+      background: #f0fdf4;
+      transform: translateY(-1px);
+    }
+
+    .catalog-filter-btn.active {
+      border-color: #10b981;
+      background: linear-gradient(135deg, #10b981, #059669);
+      color: white;
+    }
+
+    .catalog-filter-btn.active:hover {
+      background: linear-gradient(135deg, #059669, #047857);
+    }
+
+    .catalog-filter-btn .icon {
+      font-size: 16px;
+    }
     
     .catalog-modal-body {
       padding: 16px 24px;
@@ -1626,6 +1670,16 @@
       <div class="catalog-modal-header">
         <h2 id="catalogModalTitle">🔥 今週の特売</h2>
         <button class="catalog-modal-close" id="catalogModalClose">×</button>
+      </div>
+      <div class="catalog-modal-toolbar">
+        <button class="catalog-filter-btn" id="catalogFilterBtn" style="display: none;">
+          <span class="icon">✨</span>
+          <span>マイリストで絞り込み</span>
+        </button>
+        <button class="catalog-filter-btn active" id="catalogShowAllBtn" style="display: none;">
+          <span class="icon">📋</span>
+          <span>全て表示</span>
+        </button>
       </div>
       <div class="catalog-modal-body" id="catalogModalBody">
         <!-- 動的に商品が挿入される -->
@@ -2297,7 +2351,7 @@
 
     /**
      * Handle Specials View
-     * Show current week's special offers, filtered by user's list if available
+     * Show current week's special offers
      */
     async function handleSpecials() {
       try {
@@ -2311,47 +2365,8 @@
         
         const result = await response.json();
         
-        // If user has items in their list, filter specials by relevance using AI
-        if (itemsArray.length > 0) {
-          showToast('AIで関連商品を絞り込み中...', false, 2000);
-          
-          try {
-            const filterResponse = await fetch(`${API_BASE}/api/filter-specials`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                items: itemsArray.map(item => item.label),
-                specials: result.specials
-              }),
-            });
-            
-            if (!filterResponse.ok) {
-              throw new Error('AI filtering failed');
-            }
-            
-            const filterResult = await filterResponse.json();
-            
-            if (filterResult.count > 0) {
-              showCatalogModal(
-                `🔥 あなたのリストに関連する特売 (${filterResult.count}/${result.count}件)`,
-                filterResult.filtered,
-                filterResult.count
-              );
-              console.log('Filtered specials:', filterResult);
-            } else {
-              // If no matches, show all specials
-              showCatalogModal('🔥 今週の特売', result.specials, result.count);
-              showToast('関連商品が見つかりませんでした。全ての特売を表示します', false, 3000);
-            }
-          } catch (aiError) {
-            console.error('AI filtering failed, showing all specials:', aiError);
-            showCatalogModal('🔥 今週の特売', result.specials, result.count);
-            showToast('AI絞り込みに失敗しました。全ての特売を表示します', false, 3000);
-          }
-        } else {
-          // No items in list, show all specials
-          showCatalogModal('🔥 今週の特売', result.specials, result.count);
-        }
+        // Show all specials with filtering option
+        showCatalogModal('🔥 今週の特売', result.specials, result.count, true);
         
         console.log('Specials:', result);
       } catch (error) {
@@ -2702,13 +2717,51 @@
      * @param {Array} products - Array of product objects
      * @param {number} totalCount - Total count of products
      */
-    function showCatalogModal(title, products, totalCount) {
+    // Store all specials for filtering
+    let allSpecials = [];
+    let filteredSpecials = [];
+    let isFiltered = false;
+
+    function showCatalogModal(title, products, totalCount, enableFiltering = false) {
       const modal = document.getElementById('catalogModal');
       const modalTitle = document.getElementById('catalogModalTitle');
       const modalBody = document.getElementById('catalogModalBody');
       const catalogCount = document.getElementById('catalogCount');
+      const filterBtn = document.getElementById('catalogFilterBtn');
+      const showAllBtn = document.getElementById('catalogShowAllBtn');
+      
+      // Store all products for filtering
+      allSpecials = products;
+      isFiltered = false;
       
       modalTitle.textContent = title;
+      catalogCount.textContent = `${totalCount}件`;
+      
+      // Show/hide filter buttons based on enableFiltering and user's list
+      if (enableFiltering && itemsArray.length > 0) {
+        filterBtn.style.display = 'flex';
+        showAllBtn.style.display = 'flex';
+        filterBtn.classList.remove('active');
+        showAllBtn.classList.add('active');
+      } else {
+        filterBtn.style.display = 'none';
+        showAllBtn.style.display = 'none';
+      }
+      
+      // Render products
+      renderCatalogProducts(products, totalCount);
+      
+      // Show modal
+      modal.classList.add('show');
+    }
+    
+    /**
+     * Render catalog products in modal
+     */
+    function renderCatalogProducts(products, totalCount) {
+      const modalBody = document.getElementById('catalogModalBody');
+      const catalogCount = document.getElementById('catalogCount');
+      
       catalogCount.textContent = `${totalCount}件`;
       
       // Clear previous content
@@ -2753,9 +2806,85 @@
       modalBody.querySelectorAll('.catalog-add-btn').forEach(btn => {
         btn.addEventListener('click', handleCatalogAddItem);
       });
+    }
+    
+    /**
+     * Filter specials by user's list using AI
+     */
+    async function handleFilterSpecials() {
+      if (itemsArray.length === 0) {
+        showToast('リストにアイテムを追加してください', false, 2000);
+        return;
+      }
       
-      // Show modal
-      modal.classList.add('show');
+      const filterBtn = document.getElementById('catalogFilterBtn');
+      const showAllBtn = document.getElementById('catalogShowAllBtn');
+      
+      try {
+        showToast('AIで関連商品を絞り込み中...', false, 2000);
+        
+        const filterResponse = await fetch(`${API_BASE}/api/filter-specials`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            items: itemsArray.map(item => item.label),
+            specials: allSpecials
+          }),
+        });
+        
+        if (!filterResponse.ok) {
+          throw new Error('AI filtering failed');
+        }
+        
+        const filterResult = await filterResponse.json();
+        
+        if (filterResult.count > 0) {
+          filteredSpecials = filterResult.filtered;
+          isFiltered = true;
+          
+          // Update button states
+          filterBtn.classList.add('active');
+          showAllBtn.classList.remove('active');
+          
+          // Update title
+          const modalTitle = document.getElementById('catalogModalTitle');
+          modalTitle.textContent = `🔥 あなたのリストに関連する特売`;
+          
+          // Render filtered products
+          renderCatalogProducts(filteredSpecials, filterResult.count);
+          
+          showToast(`✨ ${filterResult.count}件の関連商品を表示中`, false, 3000);
+          console.log('Filtered specials:', filterResult);
+        } else {
+          showToast('関連商品が見つかりませんでした', false, 3000);
+        }
+      } catch (error) {
+        console.error('AI filtering failed:', error);
+        showToast('AI絞り込みに失敗しました', true);
+      }
+    }
+    
+    /**
+     * Show all specials (remove filter)
+     */
+    function handleShowAllSpecials() {
+      const filterBtn = document.getElementById('catalogFilterBtn');
+      const showAllBtn = document.getElementById('catalogShowAllBtn');
+      const modalTitle = document.getElementById('catalogModalTitle');
+      
+      isFiltered = false;
+      
+      // Update button states
+      filterBtn.classList.remove('active');
+      showAllBtn.classList.add('active');
+      
+      // Update title
+      modalTitle.textContent = '🔥 今週の特売';
+      
+      // Render all products
+      renderCatalogProducts(allSpecials, allSpecials.length);
+      
+      showToast(`📋 全ての特売を表示中 (${allSpecials.length}件)`, false, 2000);
     }
     
     /**
@@ -2806,6 +2935,8 @@
     // Catalog modal event listeners
     document.getElementById('catalogModalClose').addEventListener('click', hideCatalogModal);
     document.getElementById('catalogCloseBtn').addEventListener('click', hideCatalogModal);
+    document.getElementById('catalogFilterBtn').addEventListener('click', handleFilterSpecials);
+    document.getElementById('catalogShowAllBtn').addEventListener('click', handleShowAllSpecials);
     document.getElementById('catalogModal').addEventListener('click', (e) => {
       if (e.target.id === 'catalogModal') {
         hideCatalogModal();
