@@ -2297,7 +2297,7 @@
 
     /**
      * Handle Specials View
-     * Show current week's special offers
+     * Show current week's special offers, filtered by user's list if available
      */
     async function handleSpecials() {
       try {
@@ -2310,7 +2310,48 @@
         }
         
         const result = await response.json();
-        showCatalogModal('🔥 今週の特売', result.specials, result.count);
+        
+        // If user has items in their list, filter specials by relevance using AI
+        if (itemsArray.length > 0) {
+          showToast('AIで関連商品を絞り込み中...', false, 2000);
+          
+          try {
+            const filterResponse = await fetch(`${API_BASE}/api/filter-specials`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                items: itemsArray.map(item => item.label),
+                specials: result.specials
+              }),
+            });
+            
+            if (!filterResponse.ok) {
+              throw new Error('AI filtering failed');
+            }
+            
+            const filterResult = await filterResponse.json();
+            
+            if (filterResult.count > 0) {
+              showCatalogModal(
+                `🔥 あなたのリストに関連する特売 (${filterResult.count}/${result.count}件)`,
+                filterResult.filtered,
+                filterResult.count
+              );
+              console.log('Filtered specials:', filterResult);
+            } else {
+              // If no matches, show all specials
+              showCatalogModal('🔥 今週の特売', result.specials, result.count);
+              showToast('関連商品が見つかりませんでした。全ての特売を表示します', false, 3000);
+            }
+          } catch (aiError) {
+            console.error('AI filtering failed, showing all specials:', aiError);
+            showCatalogModal('🔥 今週の特売', result.specials, result.count);
+            showToast('AI絞り込みに失敗しました。全ての特売を表示します', false, 3000);
+          }
+        } else {
+          // No items in list, show all specials
+          showCatalogModal('🔥 今週の特売', result.specials, result.count);
+        }
         
         console.log('Specials:', result);
       } catch (error) {

@@ -161,6 +161,11 @@ export default {
       return await handleAIMatchRapidAPI(request, env);
     }
 
+    // Parse path: /api/filter-specials (Filter specials by user's list using AI)
+    if (url.pathname === '/api/filter-specials' && method === 'POST') {
+      return await handleFilterSpecials(request, env);
+    }
+
     // Parse path: /api/clear-cache (Clear RapidAPI cache - for development)
     if (url.pathname === '/api/clear-cache' && method === 'POST') {
       try {
@@ -1009,5 +1014,115 @@ async function handleAIMatchRapidAPI(request, env) {
   } catch (error) {
     console.error('Error in handleAIMatchRapidAPI:', error);
     return jsonResponse({ error: 'AI matching failed', details: error.message }, 500);
+  }
+}
+
+/**
+ * Filter specials by relevance to user's shopping list using AI
+ */
+async function handleFilterSpecials(request, env) {
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: 'Invalid JSON body' }, 400);
+  }
+  
+  const { items, specials } = body;
+  
+  if (!Array.isArray(items) || items.length === 0) {
+    return jsonResponse({ error: 'Invalid items array' }, 400);
+  }
+
+  if (!Array.isArray(specials) || specials.length === 0) {
+    return jsonResponse({ error: 'Invalid specials array' }, 400);
+  }
+
+  const openRouterKey = env.OPENROUTER_API_KEY;
+  if (!openRouterKey) {
+    return jsonResponse({ 
+      error: 'OpenRouter API key not configured',
+      help: 'Run: wrangler secret put OPENROUTER_API_KEY'
+    }, 500);
+  }
+  
+  try {
+    // Limit to first 100 specials to avoid token limits
+    const specialsToAnalyze = specials.slice(0, 100);
+    
+    const prompt = `You are a shopping assistant. Given a user's shopping list and available special offers, identify which specials are most relevant to what they're shopping for.
+
+User's Shopping List:
+${items.map((item, i) => `${i + 1}. ${item}`).join('\n')}
+
+Special Offers (${specialsToAnalyze.length} total):
+${specialsToAnalyze.map((s, i) => `${i + 1}. ${s.name} - $${s.price} (was $${s.wasPrice}) at ${s.store}`).join('\n')}
+
+Task: Return ONLY the numbers (comma-separated) of specials that are relevant to the user's shopping list. Consider:
+- Direct matches (e.g., "milk" matches "Full Cream Milk")
+- Category matches (e.g., "meat" matches "Beef Steak", "Chicken Breast")
+- Common substitutes (e.g., "butter" matches "Margarine")
+- Complementary items (e.g., "pasta" matches "Pasta Sauce")
+
+Return format: Just numbers separated by commas, e.g., "1,5,12,23"
+If no relevant items, return: "none"`;
+
+    const aiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${openRouterKey}`,
+        'HTTP-Referer': 'https://shared-shopping-list.grocery-shopping-list.workers.dev',
+      },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-3.2-3b-instruct:free',
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: 500,
+        temperature: 0.3,
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      throw new Error(`OpenRouter API failed: ${errorText}`);
+    }
+
+    const data = await aiResponse.json();
+    const aiText = data.choices[0].message.content.trim();
+    
+    console.log('AI filtering response:', aiText);
+    
+    if (aiText.toLowerCase() === 'none') {
+      return jsonResponse({
+        status: 'success',
+        filtered: [],
+        count: 0,
+        totalSpecials: specials.length,
+      });
+    }
+    
+    // Parse the numbers
+    const indices = aiText
+      .split(',')
+      .map(n => parseInt(n.trim()) - 1) // Convert to 0-based index
+      .filter(n => !isNaN(n) && n >= 0 && n < specialsToAnalyze.length);
+    
+    const filtered = indices.map(i => specialsToAnalyze[i]);
+    
+    return jsonResponse({
+      status: 'success',
+      filtered,
+      count: filtered.length,
+      totalSpecials: specials.length,
+      aiResponse: aiText,
+    });
+  } catch (error) {
+    console.error('Error in handleFilterSpecials:', error);
+    return jsonResponse({ error: 'AI filtering failed', details: error.message }, 500);
   }
 }
