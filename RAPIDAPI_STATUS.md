@@ -10,14 +10,14 @@ RapidAPI統合のコードは完成していますが、以下の理由でまだ
 ```bash
 # Coles API
 curl "https://coles-product-price-api.p.rapidapi.com/product/search?query=milk" \
-  -H "X-RapidAPI-Key: e3b7cc6bd2msh1f74bc6020cc7fbp1594d3jsn5ec1d8eab7e5" \
+  -H "X-RapidAPI-Key: YOUR_RAPIDAPI_KEY" \
   -H "X-RapidAPI-Host: coles-product-price-api.p.rapidapi.com"
   
 レスポンス: {"message": "You are not subscribed to this API."}
 
 # Woolworths API  
 curl "https://woolworths-products.p.rapidapi.com/search?query=milk" \
-  -H "X-RapidAPI-Key: e3b7cc6bd2msh1f74bc6020cc7fbp1594d3jsn5ec1d8eab7e5" \
+  -H "X-RapidAPI-Key: YOUR_RAPIDAPI_KEY" \
   -H "X-RapidAPI-Host: woolworths-products.p.rapidapi.com"
   
 レスポンス: {"message": "API doesn't exists"}

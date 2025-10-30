@@ -59,7 +59,17 @@ npx wrangler pages deploy public --project-name=shopping-list-app
 - **Sync**: clients poll every 7 seconds and send base versions with pending deletions
 - **AI Integration**: Cloudflare Workers AI (Llama model) for generating shopping lists from natural language prompts
 
-## 📄 License
+## � Security
+
+**Important**: This project uses API keys and secrets. Please read [SECURITY.md](SECURITY.md) before contributing or deploying.
+
+Key points:
+- Never commit API keys to Git
+- Use `.dev.vars` for local development (already in `.gitignore`)
+- Use `wrangler secret put` for production secrets
+- See [SECURITY.md](SECURITY.md) for detailed guidelines
+
+## �📄 License
 
 - [MIT](LICENSE)
 

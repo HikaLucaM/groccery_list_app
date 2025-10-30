@@ -31,9 +31,12 @@ Pagesでアプリが正常に動作するには、以下の設定が必要です
 2. 以下の変数を追加:
 
 ```
-RAPIDAPI_KEY = e3b7cc6bd2msh1f74bc6020cc7fbp1594d3jsn5ec1d8eab7e5
-OPENROUTER_API_KEY = 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
+RAPIDAPI_KEY = <your-rapidapi-key-here>
+OPENROUTER_API_KEY = <your-openrouter-api-key-here>
 ```
+
+⚠️ **セキュリティ警告**: 実際のAPIキーは絶対にGitにコミットしないでください。
+実際のキー値は Cloudflare Dashboard で直接設定してください。
 
 3. **Encrypt** にチェック (シークレット情報として保存)
 4. **Save** をクリック

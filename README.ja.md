@@ -50,7 +50,17 @@ npx wrangler pages deploy public --project-name=shopping-list-app
 - **同期**: クライアントが7秒ごとにポーリングし、baseVersion と deletedItemIds を送信
 - **AI統合**: Cloudflare Workers AI（Llamaモデル）による自然言語からの買い物リスト生成
 
-## 📄 ライセンス
+## � セキュリティ
+
+**重要**: このプロジェクトはAPIキーとシークレット情報を使用します。コントリビュートやデプロイの前に必ず [SECURITY.md](SECURITY.md) をお読みください。
+
+重要なポイント:
+- APIキーは絶対にGitにコミットしない
+- ローカル開発では `.dev.vars` を使用（既に `.gitignore` に含まれています）
+- 本番環境では `wrangler secret put` を使用
+- 詳細は [SECURITY.md](SECURITY.md) を参照
+
+## �📄 ライセンス
 
 - [MIT](LICENSE)
 
