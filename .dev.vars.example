@@ -6,9 +6,14 @@
 # Coles Product Price API と Woolworths Products API を Subscribe
 RAPIDAPI_KEY=your-rapidapi-key-here
 
-# OpenRouter API Key
+# OpenRouter API Key (1つ目)
 # 取得方法: https://openrouter.ai/ にサインアップ
 OPENROUTER_API_KEY=your-openrouter-key-here
+
+# OpenRouter API Key (2つ目 - オプション)
+# 1つ目のAPIキーがレート制限またはフリークレジット上限に達した場合、
+# 自動的に2つ目にフォールバックします
+# OPENROUTER_API_KEY_2=your-second-openrouter-key-here
 
 # Mock AI Mode (開発用)
 # true: APIを使わず、モックデータでAI生成をシミュレート
