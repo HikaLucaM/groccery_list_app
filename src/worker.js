@@ -405,67 +405,7 @@ function normalizeItem(item, fallbackPos = 0) {
  * Helper: Call OpenRouter API with a specific model
  * Strict JSON enforcement: Updated prompt to guarantee JSON-only output
  */
-async function callOpenRouter(model, prompt, apiKey, signal, language = 'ja') {
-  // Define system prompts based on language
-  const systemPrompts = {
-    ja: `あなたはオーストラリアのスーパーマーケット向け買い物リスト作成AIです。
-
-【ユーザーのリクエスト】
-${prompt}
-
-【タスク】
-上記のリクエストに基づいて、最適な買い物リストを作成してください。
-
-【重要な指示】
-1. **具体的な商品名**: 
-   - 曖昧な表現は避ける (例: ❌「野菜」→ ✅「トマト」「玉ねぎ」「にんじん」)
-   - オーストラリアで一般的な商品名を使用
-   - **日本語のみで出力** (英語の併記は不要: ❌「牛肉 (Beef)」→ ✅「牛肉」)
-   
-2. **料理の場合は全材料を含める**:
-   - 料理名が含まれる場合、その料理を作るために必要な材料を漏れなくリストアップ
-   - 基本調味料(塩、こしょう、油など)も忘れずに含める
-   
-3. **数量の明示**:
-   - 必要に応じて数量や単位を含める (例: 「牛肉 500g」「卵 6個」「牛乳 1L」)
-   
-4. **店舗タグの選択**:
-   - 各商品に最適な店舗を1つ選ぶ
-   - 選択肢: Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart
-   - 生鮮食品 → Woolies/Coles/IGA
-   - アジア食材 → Asian Grocery
-   - 日用品 → Chemist/Kmart`,
-    en: `You are an AI assistant for creating shopping lists for Australian supermarkets.
-
-【User Request】
-${prompt}
-
-【Task】
-Create an optimal shopping list based on the user's request above.
-
-【Important Instructions】
-1. **Specific product names**: 
-   - Avoid vague expressions (e.g., ❌ "vegetables" → ✅ "tomatoes", "onions", "carrots")
-   - Use product names commonly found in Australia
-   - **Output in English only** (no Japanese translation needed: ❌ "Beef (牛肉)" → ✅ "Beef")
-   
-2. **Include all ingredients for dishes**:
-   - If a dish name is mentioned, list all ingredients needed to make it
-   - Include basic seasonings (salt, pepper, oil, etc.)
-   
-3. **Specify quantities**:
-   - Include quantities and units when appropriate (e.g., "Beef 500g", "Eggs 6 pack", "Milk 1L")
-   
-4. **Store tag selection**:
-   - Assign the most appropriate store to each product
-   - Options: Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart
-   - Fresh produce → Woolies/Coles/IGA
-   - Asian ingredients → Asian Grocery
-   - Household items → Chemist/Kmart`
-  };
-
-  const selectedPrompt = systemPrompts[language] || systemPrompts.ja;
-  
+async function callOpenRouter(model, prompt, apiKey, signal) {
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
     headers: {
@@ -482,7 +422,32 @@ Create an optimal shopping list based on the user's request above.
       messages: [
         {
           role: 'user',
-          content: `${selectedPrompt}
+          content: `あなたはオーストラリアのスーパーマーケット向け買い物リスト作成AIです。
+
+【ユーザーのリクエスト】
+${prompt}
+
+【タスク】
+上記のリクエストに基づいて、最適な買い物リストを作成してください。
+
+【重要な指示】
+1. **具体的な商品名**: 
+   - 曖昧な表現は避ける (例: ❌「野菜」→ ✅「トマト」「玉ねぎ」「にんじん」)
+   - オーストラリアで一般的な商品名を使用
+   
+2. **料理の場合は全材料を含める**:
+   - 料理名が含まれる場合、その料理を作るために必要な材料を漏れなくリストアップ
+   - 基本調味料(塩、こしょう、油など)も忘れずに含める
+   
+3. **数量の明示**:
+   - 必要に応じて数量や単位を含める (例: 「牛肉 500g」「卵 6個」「牛乳 1L」)
+   
+4. **店舗タグの選択**:
+   - 各商品に最適な店舗を1つ選ぶ
+   - 選択肢: Woolies, Coles, ALDI, IGA, Asian Grocery, Chemist, Kmart
+   - 生鮮食品 → Woolies/Coles/IGA
+   - アジア食材 → Asian Grocery
+   - 日用品 → Chemist/Kmart
 
 【出力形式】
 以下のJSON形式で出力してください。説明文やマークダウンは不要です:
@@ -501,9 +466,9 @@ Create an optimal shopping list based on the user's request above.
 
 /**
  * Helper: Generate with fallback models
- * free-tier model switch
+ * Optimized: Stops early on 404/429 to avoid wasting API calls
  */
-async function generateWithFallbacks(prompt, env, language = 'ja') {
+async function generateWithFallbacks(prompt, env) {
   // free-tier model switch: Default to free model
   const DEFAULT_MODEL = env.MODEL ?? 'deepseek/deepseek-chat-v3.1:free';
   
@@ -516,44 +481,76 @@ async function generateWithFallbacks(prompt, env, language = 'ja') {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
   
+  let lastError = null;
+  
   try {
     for (const model of models) {
       try {
         console.log('Trying model:', model);
         
-        const response = await callOpenRouter(model.trim(), prompt, apiKey, controller.signal, language);
+        const response = await callOpenRouter(model.trim(), prompt, apiKey, controller.signal);
         
         // Success case
         if (response.status === 200) {
           const data = await response.json();
+          console.log(`✓ Model ${model} succeeded`);
           return data;
         }
         
-        // Payment required → try next model
+        // Parse error details
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch {
+          errorData = { error: { message: 'Unknown error', code: response.status } };
+        }
+        
+        // 404: Privacy/policy issue - STOP immediately (no point trying other models)
+        if (response.status === 404) {
+          console.error(`⚠ Model ${model} blocked by privacy policy (404). Check https://openrouter.ai/settings/privacy`);
+          throw new Error(`OpenRouter privacy policy blocking free models: ${errorData.error?.message || 'Check settings'}`);
+        }
+        
+        // 429: Rate limit - STOP immediately (all models share same limit)
+        if (response.status === 429) {
+          const resetTime = errorData.error?.metadata?.headers?.['X-RateLimit-Reset'];
+          const resetDate = resetTime ? new Date(parseInt(resetTime)).toLocaleString('ja-JP') : 'unknown';
+          console.error(`⚠ Rate limit exceeded (429). Resets at: ${resetDate}`);
+          throw new Error(`OpenRouter rate limit exceeded. Try again after ${resetDate}`);
+        }
+        
+        // 402: Payment required → try next model
         if (response.status === 402) {
-          console.log(`Model ${model} requires payment, trying next...`);
+          console.log(`⚠ Model ${model} requires payment (402), trying next...`);
+          lastError = `Payment required for ${model}`;
           continue;
         }
         
-        // Rate limit → wait and retry
-        if (response.status === 429) {
-          console.log(`Rate limited on ${model}, waiting 2s...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
+        // 5xx: Server error → try next model
+        if (response.status >= 500) {
+          console.log(`⚠ Server error ${response.status} for ${model}, trying next...`);
+          lastError = `Server error ${response.status}`;
           continue;
         }
         
         // Other errors → try next model
-        console.log(`Model ${model} failed with status ${response.status}, trying next...`);
+        console.log(`⚠ Model ${model} failed with status ${response.status}: ${errorData.error?.message || 'Unknown'}`);
+        lastError = errorData.error?.message || `HTTP ${response.status}`;
         continue;
         
       } catch (modelError) {
-        console.error(`Error with model ${model}:`, modelError);
+        // If error thrown above (404/429), re-throw immediately
+        if (modelError.message?.includes('privacy policy') || modelError.message?.includes('rate limit')) {
+          throw modelError;
+        }
+        console.error(`⚠ Exception with model ${model}:`, modelError.message);
+        lastError = modelError.message;
         continue;
       }
     }
     
     // All models failed
-    throw new Error('All models failed');
+    throw new Error(`All models failed. Last error: ${lastError || 'Unknown'}`);
     
   } finally {
     clearTimeout(timeoutId);
@@ -641,7 +638,7 @@ async function handleGenerate(request, env) {
     return jsonResponse({ error: 'Invalid JSON' }, 400);
   }
 
-  const { prompt, token, useSpecials = false, language = 'ja' } = body;
+  const { prompt, token, useSpecials = false } = body;
 
   // Validate input
   if (!prompt || typeof prompt !== 'string' || prompt.trim().length === 0) {
@@ -656,9 +653,6 @@ async function handleGenerate(request, env) {
   if (!TOKEN_PATTERN.test(token)) {
     return jsonResponse({ error: 'Invalid token format' }, 400);
   }
-  
-  // Validate language
-  const validatedLanguage = (language === 'ja' || language === 'en') ? language : 'ja';
 
   // Fetch existing list document
   const kvKey = `list:${token}`;
@@ -669,7 +663,10 @@ async function handleGenerate(request, env) {
   try {
     const apiKey = env.OPENROUTER_API_KEY;
 
-    if (!apiKey) {
+    // NEW: Mock mode for development (when API limit reached)
+    const useMockAI = env.USE_MOCK_AI === 'true';
+    
+    if (!useMockAI && !apiKey) {
       console.error('OPENROUTER_API_KEY not configured');
       return jsonResponse({ error: 'AI service not configured' }, 500);
     }
@@ -691,8 +688,15 @@ async function handleGenerate(request, env) {
       console.warn('Failed to fetch specials, continuing without:', specialsError);
     }
 
-    // Generate with fallbacks - pass language parameter
-    const openRouterData = await generateWithFallbacks(enhancedPrompt, env, validatedLanguage);
+    // Generate with fallbacks (or mock)
+    let openRouterData;
+    
+    if (useMockAI) {
+      console.log('🤖 Using MOCK AI mode (USE_MOCK_AI=true)');
+      openRouterData = generateMockAIResponse(prompt, specialsData);
+    } else {
+      openRouterData = await generateWithFallbacks(enhancedPrompt, env);
+    }
     
     clearTimeout(timeoutId);
     

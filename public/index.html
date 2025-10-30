@@ -235,34 +235,6 @@
       transform: scale(0.95);
     }
     
-    /* 設定ボタン */
-    .settings-btn {
-      padding: 8px 12px;
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 18px;
-      min-height: 36px;
-      min-width: 36px;
-      transition: all 0.3s ease;
-      box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    
-    .settings-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
-    }
-    
-    .settings-btn:active {
-      transform: scale(0.95);
-    }
-    
     /* 共有モーダル */
     .share-modal {
       display: none;
@@ -1564,44 +1536,16 @@
     <!-- ヘッダー -->
     <div class="header">
       <h1>
-        <span id="title" data-i18n="title">Shopping List</span>
+        <span id="title">Shopping List</span>
         <span class="sync-indicator" id="syncIndicator"></span>
-        <div style="display: flex; gap: 8px;">
-          <button class="settings-btn" onclick="showSettingsModal()" aria-label="Settings" title="Settings">
-            ⚙️
-          </button>
-          <button class="share-btn" onclick="showShareModal()" data-i18n="share">Share</button>
-        </div>
+        <button class="share-btn" onclick="showShareModal()">Share</button>
       </h1>
-
-      <!-- 設定モーダル -->
-      <div id="settingsModal" class="share-modal" onclick="if(event.target===this) hideSettingsModal()">
-        <div class="share-modal-content">
-          <div class="share-modal-header">
-            <h3 data-i18n="settings">Settings</h3>
-            <button class="share-modal-close" onclick="hideSettingsModal()">×</button>
-          </div>
-          <div class="share-modal-body" style="padding: 20px;">
-            <div style="margin-bottom: 24px;">
-              <label style="display: block; font-weight: 600; margin-bottom: 12px; font-size: 14px;" data-i18n="language">Language</label>
-              <div style="display: flex; gap: 12px;">
-                <button class="lang-btn" data-lang="ja" onclick="changeLanguage('ja')" style="flex: 1; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; font-size: 16px; transition: all 0.2s;">
-                  🇯🇵 日本語
-                </button>
-                <button class="lang-btn" data-lang="en" onclick="changeLanguage('en')" style="flex: 1; padding: 12px; border: 2px solid #e5e7eb; border-radius: 8px; background: white; cursor: pointer; font-size: 16px; transition: all 0.2s;">
-                  🇬🇧 English
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- 共有モーダル -->
       <div id="shareModal" class="share-modal" onclick="if(event.target===this) hideShareModal()">
         <div class="share-modal-content">
           <div class="share-modal-header">
-            <h3 data-i18n="shareTitle">Share This List</h3>
+            <h3>Share This List</h3>
             <button class="share-modal-close" onclick="hideShareModal()">×</button>
           </div>
           <div class="share-url-container">
@@ -1613,31 +1557,31 @@
       
       <!-- フィルター -->
       <div class="filter-section">
-        <label for="filterSelect" data-i18n="filterShow">Show:</label>
+        <label for="filterSelect">Show:</label>
         <select id="filterSelect" aria-label="表示フィルタ">
-          <option value="unchecked" data-i18n="filterUnchecked">未チェックのみ</option>
-          <option value="all" data-i18n="filterAll">すべて</option>
+          <option value="unchecked">未チェックのみ</option>
+          <option value="all">すべて</option>
         </select>
-        <label for="tagFilterSelect" data-i18n="filterTag">Tag:</label>
+        <label for="tagFilterSelect">Tag:</label>
         <select id="tagFilterSelect" aria-label="タグフィルタ">
-          <option value="all" data-i18n="filterAllTags">すべてのタグ</option>
+          <option value="all">すべてのタグ</option>
         </select>
       </div>
     </div>
 
     <!-- アイテムリスト -->
     <ul class="item-list" id="itemList">
-      <li class="loading" data-i18n="loading">読み込み中...</li>
+      <li class="loading">読み込み中...</li>
     </ul>
   </div>
 
   <!-- 下部固定の入力バー -->
   <div class="add-section">
-    <input type="text" id="newItemInput" placeholder="買うものを入力..." data-i18n="inputPlaceholder" aria-label="新しいアイテム">
+    <input type="text" id="newItemInput" placeholder="買うものを入力..." aria-label="新しいアイテム">
     <select id="tagSelect" aria-label="タグを選択">
-      <option value="" data-i18n="tagNone">タグなし</option>
+      <option value="">タグなし</option>
     </select>
-    <button id="addBtn" aria-label="追加" data-i18n="addButton">追加</button>
+    <button id="addBtn" aria-label="追加">追加</button>
   </div>
 
   <!-- Floating Action Button (FAB) - AI機能メニュー -->
@@ -1646,19 +1590,19 @@
     <div class="fab-menu" id="fabMenu">
       <button class="fab-menu-item generate" id="fabGenerateBtn" data-action="generate">
         <span class="icon">✨</span>
-        <span data-i18n="aiGenerateMenu">AIでリスト生成</span>
+        <span>AIでリスト生成</span>
       </button>
       <button class="fab-menu-item match" id="fabMatchBtn" data-action="match">
         <span class="icon">🎯</span>
-        <span data-i18n="aiMatchMenu">AIで価格マッチ</span>
+        <span>AIで価格マッチ</span>
       </button>
       <button class="fab-menu-item specials" id="fabSpecialsBtn" data-action="specials">
         <span class="icon">🔥</span>
-        <span data-i18n="aiSpecialsMenu">今週の特売</span>
+        <span>今週の特売</span>
       </button>
       <button class="fab-menu-item search" id="fabSearchBtn" data-action="search">
         <span class="icon">🔍</span>
-        <span data-i18n="aiSearchMenu">商品検索</span>
+        <span>商品検索</span>
       </button>
     </div>
     <button class="fab-main" id="fabMain" aria-label="AI機能メニュー">
@@ -1673,8 +1617,8 @@
   <div class="ai-loading-modal" id="aiLoadingModal">
     <div class="ai-loading-content">
       <div class="ai-loading-spinner"></div>
-      <div class="ai-loading-text" data-i18n="aiLoadingText">🤖 AIが買い物リストを生成中<span class="ai-loading-dots"></span></div>
-      <div class="ai-loading-subtext" data-i18n="aiLoadingSubtext">しばらくお待ちください</div>
+      <div class="ai-loading-text">🤖 AIが買い物リストを生成中<span class="ai-loading-dots"></span></div>
+      <div class="ai-loading-subtext">しばらくお待ちください</div>
     </div>
   </div>
 
@@ -1710,12 +1654,12 @@
   <!-- AI提案モーダル -->
   <div class="modal" id="aiSuggestionsModal">
     <div class="modal-content ai-suggestions-content">
-      <h2 data-i18n="aiModalTitle">🤖 AIの買い物リスト提案</h2>
-      <p class="ai-suggestions-description" data-i18n="aiModalPrompt">追加したい項目を選択してください</p>
+      <h2>🤖 AIの買い物リスト提案</h2>
+      <p class="ai-suggestions-description">追加したい項目を選択してください</p>
       <div class="ai-suggestions-list" id="suggestionList"></div>
       <div class="modal-actions">
-        <button class="modal-btn-secondary" id="cancelSuggestions" data-i18n="aiModalCancel">キャンセル</button>
-        <button class="modal-btn-primary" id="addSelected" data-i18n="addSelected">選択した項目を追加</button>
+        <button class="modal-btn-secondary" id="cancelSuggestions">キャンセル</button>
+        <button class="modal-btn-primary" id="addSelected">選択した項目を追加</button>
       </div>
     </div>
   </div>
@@ -1724,25 +1668,25 @@
   <div class="catalog-modal" id="catalogModal">
     <div class="catalog-modal-content">
       <div class="catalog-modal-header">
-        <h2 id="catalogModalTitle" data-i18n="catalogModalTitle">🔥 今週の特売</h2>
+        <h2 id="catalogModalTitle">🔥 今週の特売</h2>
         <button class="catalog-modal-close" id="catalogModalClose">×</button>
       </div>
       <div class="catalog-modal-toolbar">
         <button class="catalog-filter-btn" id="catalogFilterBtn" style="display: none;">
           <span class="icon">✨</span>
-          <span data-i18n="catalogFilter">マイリストで絞り込み</span>
+          <span>マイリストで絞り込み</span>
         </button>
         <button class="catalog-filter-btn active" id="catalogShowAllBtn" style="display: none;">
           <span class="icon">📋</span>
-          <span data-i18n="catalogShowAll">全て表示</span>
+          <span>全て表示</span>
         </button>
       </div>
       <div class="catalog-modal-body" id="catalogModalBody">
         <!-- 動的に商品が挿入される -->
       </div>
       <div class="catalog-modal-footer">
-        <span class="catalog-count" id="catalogCount">0<span data-i18n="catalogCount">件</span></span>
-        <button class="catalog-close-btn" id="catalogCloseBtn" data-i18n="catalogClose">閉じる</button>
+        <span class="catalog-count" id="catalogCount">0件</span>
+        <button class="catalog-close-btn" id="catalogCloseBtn">閉じる</button>
       </div>
     </div>
   </div>
@@ -1777,197 +1721,6 @@
     };
 
     // ============================================================
-    // i18n (Internationalization)
-    // ============================================================
-    const translations = {
-      ja: {
-        title: 'Shopping List',
-        share: 'Share',
-        settings: '設定',
-        language: '言語',
-        shareTitle: 'リストを共有',
-        filterShow: '表示:',
-        filterUnchecked: '未チェックのみ',
-        filterAll: 'すべて',
-        filterTag: 'タグ:',
-        filterAllTags: 'すべてのタグ',
-        loading: '読み込み中...',
-        inputPlaceholder: '買うものを入力...',
-        tagNone: 'タグなし',
-        addButton: '追加',
-        aiGenerateMenu: 'AIでリスト生成',
-        aiMatchMenu: 'AIで価格マッチ',
-        aiSpecialsMenu: '今週の特売',
-        aiSearchMenu: '商品検索',
-        aiLoadingText: '🤖 AIが買い物リストを生成中',
-        aiLoadingSubtext: 'しばらくお待ちください',
-        aiModalTitle: '🤖 AIで買い物リスト生成',
-        aiModalPrompt: '作りたい料理や用途を入力:',
-        aiModalPlaceholder: '例: 肉じゃが、パーティー用おつまみ、今週の作り置き',
-        aiModalGenerate: '生成',
-        aiModalCancel: 'キャンセル',
-        addSelected: '選択した項目を追加',
-        catalogModalTitle: '🔥 今週の特売',
-        catalogFilter: 'マイリストで絞り込み',
-        catalogShowAll: '全て表示',
-        catalogCount: '件',
-        catalogClose: '閉じる',
-        catalogAddBtn: '+ リストに追加',
-        catalogLinkBtn: '商品ページ',
-        toastNoItems: 'リストにアイテムを追加してください',
-        toastAiFiltering: '🤖 AIで関連商品を絞り込み中...',
-        toastAiAnalyzing: 'AIがあなたのリストを分析中...',
-        toastAiProcessing: 'AI処理中...',
-        toastRateLimitError: '⚠️ APIの利用制限に達しました。しばらく待ってから再度お試しください。',
-        toastAiError: 'AI処理中にエラーが発生しました',
-        toastAdded: 'アイテムが追加されました',
-        toastCopied: 'URLをコピーしました',
-      },
-      en: {
-        title: 'Shopping List',
-        share: 'Share',
-        settings: 'Settings',
-        language: 'Language',
-        shareTitle: 'Share This List',
-        filterShow: 'Show:',
-        filterUnchecked: 'Unchecked only',
-        filterAll: 'All',
-        filterTag: 'Tag:',
-        filterAllTags: 'All tags',
-        loading: 'Loading...',
-        inputPlaceholder: 'Enter item to buy...',
-        tagNone: 'No tag',
-        addButton: 'Add',
-        aiGenerateMenu: 'AI List Generation',
-        aiMatchMenu: 'AI Price Match',
-        aiSpecialsMenu: 'Weekly Specials',
-        aiSearchMenu: 'Product Search',
-        aiLoadingText: '🤖 AI is generating shopping list',
-        aiLoadingSubtext: 'Please wait...',
-        aiModalTitle: '🤖 Generate Shopping List with AI',
-        aiModalPrompt: 'Enter dish or purpose:',
-        aiModalPlaceholder: 'e.g., pasta carbonara, party snacks, meal prep',
-        aiModalGenerate: 'Generate',
-        aiModalCancel: 'Cancel',
-        addSelected: 'Add selected items',
-        catalogModalTitle: '🔥 Weekly Specials',
-        catalogFilter: 'Filter by my list',
-        catalogShowAll: 'Show all',
-        catalogCount: 'items',
-        catalogClose: 'Close',
-        catalogAddBtn: '+ Add to list',
-        catalogLinkBtn: 'View product',
-        toastNoItems: 'Please add items to your list',
-        toastAiFiltering: '🤖 AI is filtering relevant products...',
-        toastAiAnalyzing: 'AI is analyzing your list...',
-        toastAiProcessing: 'AI processing...',
-        toastRateLimitError: '⚠️ API rate limit reached. Please try again later.',
-        toastAiError: 'An error occurred during AI processing',
-        toastAdded: 'Item added',
-        toastCopied: 'URL copied',
-      }
-    };
-
-    let currentLanguage = localStorage.getItem('language') || 'ja';
-
-    /**
-     * Detect language from user input (Japanese characters present = ja, else = en)
-     */
-    function detectLanguage(text) {
-      const japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
-      return japanesePattern.test(text) ? 'ja' : 'en';
-    }
-
-    /**
-     * Update all UI text based on current language
-     */
-    function updateUILanguage() {
-      const t = translations[currentLanguage];
-      
-      // Update all elements with data-i18n attribute
-      document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        if (t[key]) {
-          if (el.tagName === 'INPUT' && el.type === 'text') {
-            el.placeholder = t[key];
-          } else {
-            el.textContent = t[key];
-          }
-        }
-      });
-
-      // Update html lang attribute
-      document.documentElement.lang = currentLanguage;
-      
-      // Update filter select options
-      const filterSelect = document.getElementById('filterSelect');
-      if (filterSelect) {
-        filterSelect.innerHTML = `
-          <option value="unchecked">${t.filterUnchecked}</option>
-          <option value="all">${t.filterAll}</option>
-        `;
-      }
-      
-      // Update tag filter
-      const tagFilterSelect = document.getElementById('tagFilterSelect');
-      if (tagFilterSelect) {
-        const currentValue = tagFilterSelect.value;
-        tagFilterSelect.innerHTML = `<option value="all">${t.filterAllTags}</option>`;
-        tagFilterSelect.value = currentValue;
-      }
-      
-      // Update tag select
-      const tagSelect = document.getElementById('tagSelect');
-      if (tagSelect) {
-        const currentValue = tagSelect.value;
-        tagSelect.innerHTML = `<option value="">${t.tagNone}</option>`;
-        tagSelect.value = currentValue;
-      }
-      
-      // Update language buttons styling
-      document.querySelectorAll('.lang-btn').forEach(btn => {
-        const lang = btn.getAttribute('data-lang');
-        if (lang === currentLanguage) {
-          btn.style.borderColor = '#3b82f6';
-          btn.style.background = '#eff6ff';
-          btn.style.fontWeight = '600';
-        } else {
-          btn.style.borderColor = '#e5e7eb';
-          btn.style.background = 'white';
-          btn.style.fontWeight = '400';
-        }
-      });
-    }
-
-    /**
-     * Change application language
-     */
-    function changeLanguage(lang) {
-      if (lang !== 'ja' && lang !== 'en') return;
-      
-      currentLanguage = lang;
-      localStorage.setItem('language', lang);
-      updateUILanguage();
-      renderItems(); // Re-render to update dynamic content
-      showToast(lang === 'ja' ? '言語を変更しました' : 'Language changed', true, 1500);
-    }
-
-    /**
-     * Show settings modal
-     */
-    function showSettingsModal() {
-      document.getElementById('settingsModal').style.display = 'flex';
-      updateUILanguage(); // Update button styling
-    }
-
-    /**
-     * Hide settings modal
-     */
-    function hideSettingsModal() {
-      document.getElementById('settingsModal').style.display = 'none';
-    }
-
-    // ============================================================
     // State
     // ============================================================
     let listData = { title: 'Shopping', items: [] };
@@ -1994,9 +1747,6 @@
         window.location.href = newUrl;
         return;
       }
-
-      // Initialize UI language
-      updateUILanguage();
 
       // Load custom tags from localStorage
       loadCustomTags();
@@ -2428,12 +2178,8 @@
         loadingModal.classList.add('show');
         aiGenerateCooldown = true;
         
-        // Detect language from user prompt
-        const userLanguage = detectLanguage(description.trim());
-        
         console.log('[DEBUG] Starting AI generation request...');
         console.log('[DEBUG] Prompt:', description.trim());
-        console.log('[DEBUG] Detected language:', userLanguage);
         console.log('[DEBUG] Token:', token);
         
         const response = await fetch(`${API_BASE}/api/generate`, {
@@ -2442,7 +2188,6 @@
           body: JSON.stringify({
             prompt: description.trim(),
             token: token,
-            language: userLanguage, // Pass detected language to API
           }),
         });
         
@@ -2451,13 +2196,7 @@
         
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
-          let errorMessage = errorData.error || translations[currentLanguage].toastAiError;
-          
-          // Handle rate limit errors
-          if (response.status === 429 || response.status === 402) {
-            errorMessage = translations[currentLanguage].toastRateLimitError;
-          }
-          
+          const errorMessage = errorData.error || 'AI生成に失敗しました';
           console.error('[DEBUG] AI generation error:', errorData);
           throw new Error(errorMessage);
         }
@@ -2472,7 +2211,7 @@
         } catch (parseError) {
           console.error('[DEBUG] JSON parse error:', parseError);
           console.error('[DEBUG] Failed to parse:', responseText);
-          throw new Error(translations[currentLanguage].toastAiError);
+          throw new Error('レスポンスのパースに失敗しました');
         }
 
         // Debug: Log the response structure
@@ -3105,7 +2844,7 @@
       const currentItems = Array.isArray(listData?.items) ? listData.items : [];
 
       if (currentItems.length === 0) {
-        showToast(translations[currentLanguage].toastNoItems, false, 2000);
+        showToast('リストにアイテムを追加してください', false, 2000);
         return;
       }
       
@@ -3116,12 +2855,12 @@
       try {
         // Show loading state
         filterBtn.disabled = true;
-        filterBtn.innerHTML = '<span class="icon">⏳</span><span>' + translations[currentLanguage].toastAiProcessing + '</span>';
+        filterBtn.innerHTML = '<span class="icon">⏳</span><span>AI処理中...</span>';
         
         // Show loading in modal body
-        modalBody.innerHTML = '<div style="text-align:center;padding:40px;color:#666;"><div style="font-size:32px;margin-bottom:16px;">🤖</div><div>' + translations[currentLanguage].toastAiAnalyzing + '</div></div>';
+        modalBody.innerHTML = '<div style="text-align:center;padding:40px;color:#666;"><div style="font-size:32px;margin-bottom:16px;">🤖</div><div>AIがあなたのリストを分析中...</div></div>';
         
-        showToast(translations[currentLanguage].toastAiFiltering, false, 2000);
+        showToast('🤖 AIで関連商品を絞り込み中...', false, 2000);
         
         const filterResponse = await fetch(`${API_BASE}/api/filter-specials`, {
           method: 'POST',
@@ -3133,14 +2872,7 @@
         });
         
         if (!filterResponse.ok) {
-          let errorMessage = translations[currentLanguage].toastAiError;
-          
-          // Handle rate limit errors
-          if (filterResponse.status === 429 || filterResponse.status === 402) {
-            errorMessage = translations[currentLanguage].toastRateLimitError;
-          }
-          
-          throw new Error(errorMessage);
+          throw new Error('AI filtering failed');
         }
         
         const filterResult = await filterResponse.json();
@@ -3152,44 +2884,31 @@
           // Update button states
           filterBtn.classList.add('active');
           filterBtn.disabled = false;
-          filterBtn.innerHTML = '<span class="icon">✨</span><span>' + translations[currentLanguage].catalogFilter + '</span>';
+          filterBtn.innerHTML = '<span class="icon">✨</span><span>マイリストで絞り込み</span>';
           showAllBtn.classList.remove('active');
           
           // Update title
           const modalTitle = document.getElementById('catalogModalTitle');
-          const titleText = currentLanguage === 'ja' 
-            ? `✨ あなたのリストに関連する特売 (${filterResult.count}件)` 
-            : `✨ Specials matching your list (${filterResult.count} items)`;
-          modalTitle.textContent = titleText;
+          modalTitle.textContent = `✨ あなたのリストに関連する特売 (${filterResult.count}件)`;
           
           // Render filtered products
           renderCatalogProducts(filteredSpecials, filterResult.count);
           
-          const toastMsg = currentLanguage === 'ja' 
-            ? `✅ ${filterResult.count}件の関連商品を表示中` 
-            : `✅ Showing ${filterResult.count} matching items`;
-          showToast(toastMsg, false, 3000);
+          showToast(`✅ ${filterResult.count}件の関連商品を表示中`, false, 3000);
           console.log('Filtered specials:', filterResult);
         } else {
           // No matches found
           filterBtn.disabled = false;
-          filterBtn.innerHTML = '<span class="icon">✨</span><span>' + translations[currentLanguage].catalogFilter + '</span>';
-          const noMatchMsg = currentLanguage === 'ja'
-            ? '<div style="text-align:center;padding:40px;color:#666;"><div style="font-size:48px;margin-bottom:16px;">😔</div><div style="font-size:18px;font-weight:600;margin-bottom:8px;">関連商品が見つかりませんでした</div><div style="font-size:14px;">別のアイテムをリストに追加してみてください</div></div>'
-            : '<div style="text-align:center;padding:40px;color:#666;"><div style="font-size:48px;margin-bottom:16px;">😔</div><div style="font-size:18px;font-weight:600;margin-bottom:8px;">No matching products found</div><div style="font-size:14px;">Try adding different items to your list</div></div>';
-          modalBody.innerHTML = noMatchMsg;
-          const toastMsg = currentLanguage === 'ja' ? '関連商品が見つかりませんでした' : 'No matching products found';
-          showToast(toastMsg, false, 3000);
+          filterBtn.innerHTML = '<span class="icon">✨</span><span>マイリストで絞り込み</span>';
+          modalBody.innerHTML = '<div style="text-align:center;padding:40px;color:#666;"><div style="font-size:48px;margin-bottom:16px;">😔</div><div style="font-size:18px;font-weight:600;margin-bottom:8px;">関連商品が見つかりませんでした</div><div style="font-size:14px;">別のアイテムをリストに追加してみてください</div></div>';
+          showToast('関連商品が見つかりませんでした', false, 3000);
         }
       } catch (error) {
         console.error('AI filtering failed:', error);
         filterBtn.disabled = false;
-        filterBtn.innerHTML = '<span class="icon">✨</span><span>' + translations[currentLanguage].catalogFilter + '</span>';
-        const errorMsg = currentLanguage === 'ja'
-          ? '<div style="text-align:center;padding:40px;color:#dc2626;"><div style="font-size:48px;margin-bottom:16px;">⚠️</div><div style="font-size:18px;font-weight:600;margin-bottom:8px;">AI絞り込みに失敗しました</div><div style="font-size:14px;">もう一度お試しください</div></div>'
-          : '<div style="text-align:center;padding:40px;color:#dc2626;"><div style="font-size:48px;margin-bottom:16px;">⚠️</div><div style="font-size:18px;font-weight:600;margin-bottom:8px;">AI filtering failed</div><div style="font-size:14px;">Please try again</div></div>';
-        modalBody.innerHTML = errorMsg;
-        showToast(error.message || translations[currentLanguage].toastAiError, true);
+        filterBtn.innerHTML = '<span class="icon">✨</span><span>マイリストで絞り込み</span>';
+        modalBody.innerHTML = '<div style="text-align:center;padding:40px;color:#dc2626;"><div style="font-size:48px;margin-bottom:16px;">⚠️</div><div style="font-size:18px;font-weight:600;margin-bottom:8px;">AI絞り込みに失敗しました</div><div style="font-size:14px;">もう一度お試しください</div></div>';
+        showToast('AI絞り込みに失敗しました', true);
       }
     }
     
