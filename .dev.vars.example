@@ -9,3 +9,9 @@ RAPIDAPI_KEY=your-rapidapi-key-here
 # OpenRouter API Key
 # 取得方法: https://openrouter.ai/ にサインアップ
 OPENROUTER_API_KEY=your-openrouter-key-here
+
+# Mock AI Mode (開発用)
+# true: APIを使わず、モックデータでAI生成をシミュレート
+# false: 実際のOpenRouter APIを使用（デフォルト）
+# レート制限時や開発中のAPI消費を抑えたい場合にtrueに設定
+USE_MOCK_AI=false

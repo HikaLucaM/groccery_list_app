@@ -402,6 +402,78 @@ function normalizeItem(item, fallbackPos = 0) {
 }
 
 /**
+ * Helper: Generate mock AI response for development
+ * Used when API rate limit is reached or USE_MOCK_AI=true
+ */
+function generateMockAIResponse(prompt, specialsData = []) {
+  const lowerPrompt = prompt.toLowerCase();
+  
+  // Common Japanese shopping items by category
+  const mockItems = [];
+  
+  if (lowerPrompt.includes('朝食') || lowerPrompt.includes('breakfast')) {
+    mockItems.push(
+      { label: '食パン', tags: ['Woolies'] },
+      { label: '牛乳 1L', tags: ['Coles'] },
+      { label: '卵 6個入り', tags: ['Woolies'] },
+      { label: 'バター', tags: ['ALDI'] }
+    );
+  } else if (lowerPrompt.includes('夕食') || lowerPrompt.includes('ディナー') || lowerPrompt.includes('dinner')) {
+    mockItems.push(
+      { label: '牛肉 500g', tags: ['Woolies'] },
+      { label: '玉ねぎ', tags: ['Coles'] },
+      { label: 'にんじん', tags: ['Coles'] },
+      { label: 'じゃがいも', tags: ['Woolies'] },
+      { label: '醤油', tags: ['Asian Grocery'] }
+    );
+  } else if (lowerPrompt.includes('カレー') || lowerPrompt.includes('curry')) {
+    mockItems.push(
+      { label: 'カレールー', tags: ['Asian Grocery'] },
+      { label: '鶏肉 600g', tags: ['Coles'] },
+      { label: 'じゃがいも 3個', tags: ['Woolies'] },
+      { label: 'にんじん 2本', tags: ['Coles'] },
+      { label: '玉ねぎ 2個', tags: ['Woolies'] }
+    );
+  } else if (lowerPrompt.includes('パーティー') || lowerPrompt.includes('party') || lowerPrompt.includes('バーベキュー') || lowerPrompt.includes('bbq')) {
+    mockItems.push(
+      { label: 'ソーセージ 1kg', tags: ['Coles'] },
+      { label: 'ハンバーガーパン', tags: ['Woolies'] },
+      { label: 'レタス', tags: ['Coles'] },
+      { label: 'トマト', tags: ['Woolies'] },
+      { label: 'ビール 6缶', tags: ['Woolies'] },
+      { label: 'ポテトチップス', tags: ['ALDI'] }
+    );
+  } else {
+    // Default generic items
+    mockItems.push(
+      { label: '牛乳', tags: ['Woolies'] },
+      { label: 'パン', tags: ['Coles'] },
+      { label: '卵', tags: ['Woolies'] },
+      { label: 'トマト', tags: ['Coles'] }
+    );
+  }
+  
+  // If specials available, add 1-2 special items
+  if (specialsData.length > 0) {
+    const special = specialsData[0];
+    mockItems.push({ 
+      label: special.name, 
+      tags: [special.store] 
+    });
+  }
+  
+  return {
+    choices: [{
+      message: {
+        content: JSON.stringify({ items: mockItems })
+      }
+    }],
+    model: 'mock-ai',
+    usage: { total_tokens: 0 }
+  };
+}
+
+/**
  * Helper: Call OpenRouter API with a specific model
  * Strict JSON enforcement: Updated prompt to guarantee JSON-only output
  */
