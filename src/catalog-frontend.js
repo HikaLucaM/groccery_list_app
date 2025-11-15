@@ -23,7 +23,11 @@ let priceMatches = new Map();
 async function loadSpecials() {
   try {
     showSyncIndicator();
-    const response = await fetch(`${API_BASE}/api/specials`);
+    // Show loading modal with elapsed time while fetching specials
+    startSpecialsLoading();
+    const opts = {};
+    if (specialsAbortController) opts.signal = specialsAbortController.signal;
+    const response = await fetch(`${API_BASE}/api/specials`, opts);
     const data = await response.json();
     
     if (data.status === 'success') {
@@ -33,10 +37,123 @@ async function loadSpecials() {
     }
   } catch (error) {
     console.error('Failed to load specials:', error);
+      if (error && error.name === 'AbortError') {
+        // user cancelled
+        stopSpecialsLoading(true);
+        return;
+      }
     // Fail silently - specials are optional
   } finally {
+    stopSpecialsLoading();
     hideSyncIndicator();
   }
+}
+
+// ============================================================
+// Specials loading modal + elapsed timer
+// ============================================================
+
+let specialsLoadingDeferred = null;
+let specialsLoadingStart = 0;
+let specialsLoadingInterval = null;
+let specialsModalShown = false;
+let specialsAbortController = null;
+let specialsAborted = false;
+
+function updateSpecialsElapsed() {
+  const elapsedSec = Math.max(0, (performance.now() - specialsLoadingStart) / 1000);
+  const el = document.getElementById('specialsLoadingElapsed');
+  if (el) el.textContent = elapsedSec.toFixed(1);
+}
+
+function startSpecialsLoading() {
+  // Reset
+  // Abort any previous in-progress controller
+  if (specialsAbortController) {
+    try { specialsAbortController.abort(); } catch (e) {}
+    specialsAbortController = null;
+  }
+  specialsAborted = false;
+  specialsAbortController = new AbortController();
+  specialsLoadingStart = performance.now();
+  specialsModalShown = false;
+
+  // Only show modal if fetch is still running after 160ms to avoid flicker
+  specialsLoadingDeferred = setTimeout(() => {
+    const modal = document.getElementById('specialsLoadingModal');
+    if (modal) {
+      modal.classList.add('show');
+      specialsModalShown = true;
+      updateSpecialsElapsed();
+      specialsLoadingInterval = setInterval(updateSpecialsElapsed, 100);
+    }
+  }, 160);
+}
+
+function stopSpecialsLoading(aborted = false) {
+  try {
+    // Cancel deferred show if not yet shown
+    if (specialsLoadingDeferred) {
+      clearTimeout(specialsLoadingDeferred);
+      specialsLoadingDeferred = null;
+    }
+
+    // Compute elapsed
+    const elapsedSec = Math.max(0, (performance.now() - specialsLoadingStart) / 1000);
+
+    // If modal was shown, update and then hide after short delay
+    const modal = document.getElementById('specialsLoadingModal');
+    if (modal && specialsModalShown) {
+      const el = document.getElementById('specialsLoadingElapsed');
+      if (el) el.textContent = elapsedSec.toFixed(1);
+
+      // show 'Done' with toast and hide modal after 1.2s
+      setTimeout(() => {
+        modal.classList.remove('show');
+      }, 1200);
+    }
+
+    // Clear timer if set
+    if (specialsLoadingInterval) {
+      clearInterval(specialsLoadingInterval);
+      specialsLoadingInterval = null;
+    }
+
+    // Show how long it took only if this wasn't effectively instantaneous
+    if (!aborted && elapsedSec >= 0.3) {
+      showToast(`特売情報を取得しました（${elapsedSec.toFixed(1)}秒）`);
+    }
+
+    if (aborted) {
+      showToast('特売情報の取得をキャンセルしました', true);
+    }
+
+    // Reset controller
+    if (specialsAbortController) {
+      try { specialsAbortController.abort(); } catch (e) {}
+      specialsAbortController = null;
+    }
+  } catch (e) {
+    // Nothing
+  }
+}
+
+function cancelSpecialsLoading() {
+  specialsAborted = true;
+  if (specialsAbortController) {
+    try { specialsAbortController.abort(); } catch (e) {}
+    specialsAbortController = null;
+  }
+
+  // Stop UI and show toast
+  stopSpecialsLoading(true);
+}
+
+// Expose cancellation to global scope for onclick handlers
+try {
+  window.cancelSpecialsLoading = cancelSpecialsLoading;
+} catch (e) {
+  // no-op in test environments
 }
 
 /**

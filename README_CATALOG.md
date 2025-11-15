@@ -7,34 +7,16 @@ Woolworths/Colesのカタログ情報と連携した、スマートな買い物�
 ## 🚀 実装された機能
 
 ### 1. **カタログAPI統合** (`src/catalog-api.js`)
-- ✅ Woolworths特売情報取得
-- ✅ Coles特売情報取得  
-- ✅ 商品検索機能(両店舗)
-- ✅ 価格比較機能
-- ✅ KVキャッシング(1時間)
-- ✅ モックデータ対応(デモ用)
 
 ### 2. **新しいAPIエンドポイント**
-- ✅ `GET /api/specials` - 特売一覧
-- ✅ `GET /api/search?q=商品名` - 商品検索
-- ✅ `POST /api/match` - 価格照合
-- ✅ `POST /api/generate` - AI生成(`useSpecials`オプション追加)
 
 ### 3. **モックデータ** (`src/catalog-mock-data.js`)
 実際のAPIがデモで使いにくいため、リアルな特売データを用意:
-- Woolworths: 10商品(肉、野菜、乳製品など)
-- Coles: 10商品(肉、野菜、乳製品など)
-- すべて特売価格と元の価格を含む
 
 ### 4. **フロントエンド準備** (`src/catalog-frontend.js`)
 UIコンポーネントのコードを用意:
-- 特売情報セクション
-- 価格バッジ
-- AI生成オプション
-- タブ切り替え
 
 ## 🧪 APIテスト結果
-
 ### 商品検索 ✅
 ```bash
 $ curl "https://shared-shopping-list.grocery-shopping-list.workers.dev/api/search?q=beef"
@@ -94,6 +76,8 @@ $ curl -X POST https://shared-shopping-list.grocery-shopping-list.workers.dev/ap
 2. 特売情報が表示される
 3. AIボタンで特売オプションが利用可能
 4. 商品に価格バッジが表示される
+
+注意: 実際の特売APIは応答が遅くなる場合があるため、取得中は画面中央にローディングモーダルが表示され、経過時間（秒）を確認できます。取得が終わるとモーダルは閉じ、0.3秒以上かかっていればトーストで時間を通知します。
 
 ## 🎯 使用シナリオ
 

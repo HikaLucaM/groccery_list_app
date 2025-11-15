@@ -1283,6 +1283,52 @@
       content: '';
       animation: dots 1.5s steps(4, end) infinite;
     }
+    /* 特売ローディング */
+    .specials-loading-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      background: rgba(14, 165, 233, 0.08);
+      backdrop-filter: blur(2px);
+    }
+
+    .specials-loading-modal.show {
+      display: flex;
+    }
+
+    .specials-loading-content {
+      background: #ffffff;
+      padding: 22px 30px;
+      border-radius: 12px;
+      box-shadow: 0 12px 30px rgba(2,6,23,0.18);
+      text-align: center;
+      min-width: 320px;
+    }
+
+    .specials-loading-spinner {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 4px solid #eef2ff;
+      border-top-color: #7c3aed;
+      margin: 8px auto 14px auto;
+      animation: spin 1s linear infinite;
+    }
+
+    .specials-loading-text {
+      font-weight: 700;
+      color: #111827;
+      margin-bottom: 6px;
+    }
+
+    .specials-loading-subtext {
+      color: #6b7280;
+      font-size: 14px;
+      margin-top: 8px;
+    }
     
     @keyframes dots {
       0%, 20% { content: ''; }
@@ -1619,6 +1665,18 @@
       <div class="ai-loading-spinner"></div>
       <div class="ai-loading-text">🤖 AIが買い物リストを生成中<span class="ai-loading-dots"></span></div>
       <div class="ai-loading-subtext">しばらくお待ちください</div>
+    </div>
+  </div>
+
+  <!-- 特売取得ローディングモーダル -->
+  <div class="specials-loading-modal" id="specialsLoadingModal">
+    <div class="specials-loading-content">
+      <div class="specials-loading-spinner"></div>
+      <div class="specials-loading-text">🔎 特売情報を取得中<span class="specials-loading-dots"></span></div>
+      <div class="specials-loading-subtext">経過時間: <span id="specialsLoadingElapsed">0.0</span> 秒</div>
+        <div style="margin-top:12px; display:flex; justify-content:center; gap:8px;">
+          <button class="modal-btn-secondary" id="specialsLoadingCancelBtn" onclick="cancelSpecialsLoading()">キャンセル</button>
+        </div>
     </div>
   </div>
 
@@ -2358,8 +2416,15 @@
     async function handleSpecials() {
       try {
         showToast('特売情報を取得中...', false, 2000);
+        // show elapsed loader if it exists
+        if (typeof startSpecialsLoading === 'function') startSpecialsLoading();
         
-        const response = await fetch(`${API_BASE}/api/specials-rapidapi`);
+        const opts = {};
+        if (typeof specialsAbortController !== 'undefined' && specialsAbortController) {
+          opts.signal = specialsAbortController.signal;
+        }
+
+        const response = await fetch(`${API_BASE}/api/specials-rapidapi`, opts);
         
         if (!response.ok) {
           const errorText = await response.text();
@@ -2379,8 +2444,15 @@
         showCatalogModal('🔥 今週の特売', result.specials, result.count, true);
         
         console.log('Specials loaded:', result.count);
+        if (typeof stopSpecialsLoading === 'function') stopSpecialsLoading();
       } catch (error) {
         console.error('Error fetching specials:', error);
+        if (error && error.name === 'AbortError') {
+          if (typeof stopSpecialsLoading === 'function') stopSpecialsLoading(true);
+          return;
+        }
+
+        if (typeof stopSpecialsLoading === 'function') stopSpecialsLoading();
         showToast('特売情報の取得に失敗しました', true);
       }
     }
