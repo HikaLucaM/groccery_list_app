@@ -2394,9 +2394,12 @@
           }
         });
         
-        if (updateCount > 0) {
+          if (updateCount > 0) {
           // Save updated items to server
-          await saveItems();
+          // `saveList` is the frontend API used to persist listData to the server.
+          // `saveItems` was referenced here previously but not defined, which caused a
+          // ReferenceError. Use `saveList` to persist the updated items instead.
+          await saveList();
           // Re-render to show prices
           await fetchAndRender();
         }
